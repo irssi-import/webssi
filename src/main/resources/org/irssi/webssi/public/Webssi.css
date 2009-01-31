@@ -1,0 +1,67 @@
+.b { font-weight: bold }
+.u { text-decoration: underline }
+.m { font-family: monospace }
+
+/* foreground */
+.fk { color: #000000 } /* dark black (black) */
+.fr { color: #B21717 } /* dark red */
+.fg { color: #17B217 } /* dark green */ 
+.fy { color: #B26717 } /* dark yellow (orange) */
+.fb { color: #1717B2 } /* dark blue */
+.fm { color: #B217B2 } /* dark magenta */
+.fc { color: #17B2B2 } /* dark cyan */
+.fw { color: #B2B2B2 } /* dark white (light grey) */
+.lK { color: #686868 } /* light black (dark grey) */
+.lR { color: #FF5454 } /* light red */
+.lG { color: #54FF54 } /* light green */
+.lY { color: #FFFF54 } /* light yellow */
+.lB { color: #5454FF } /* light blue */
+.lM { color: #FF54FF } /* light magenta */
+.lC { color: #54FFFF } /* light cyan */
+.lW { color: #FFFFFF } /* light white (white)*/
+
+/* background */
+.bk { background-color: #000000 } /* dark black (black) */
+.br { background-color: #B21717 } /* dark red */
+.bg { background-color: #17B217 } /* dark green */ 
+.by { background-color: #B26717 } /* dark yellow (orange) */
+.bb { background-color: #1717B2 } /* dark blue */
+.bm { background-color: #B217B2 } /* dark magenta */
+.bc { background-color: #17B2B2 } /* dark cyan */
+.bw { background-color: #B2B2B2 } /* dark white (light grey) */
+.oK { background-color: #686868 } /* light black (dark grey)
+.oR { background-color: #FF5454 } /* light red */
+.oG { background-color: #54FF54 } /* light green */
+.oY { background-color: #FFFF54 } /* light yellow */
+.oB { background-color: #5454FF } /* light blue */
+.oM { background-color: #FF54FF } /* light magenta */
+.oC { background-color: #54FFFF } /* light cyan */
+.oW { background-color: #FFFFFF } /* light white (white)*/
+
+/* part of line before indent */
+.p1 {
+	display: table-cell;
+	white-space: pre
+}
+
+/* part of line after indent */
+.p2 {
+	display: table-cell;
+	white-space: pre-wrap
+}
+
+.p3 {
+	display: table-row;
+	/*white-space: pre*/
+}
+
+.WinView {
+	background-color: black;
+	color: #B2B2B2
+}
+
+.entryBox {
+	width: 100%
+}
+
+/*.TabWC { background-color: black; color: white }*/
