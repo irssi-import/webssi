@@ -3,59 +3,66 @@ package org.irssi.webssi.client.view;
 import org.irssi.webssi.client.model.Window;
 import org.irssi.webssi.client.model.WindowItem;
 
+import com.google.gwt.user.client.DOM;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.HorizontalPanel;
+import com.google.gwt.user.client.ui.ScrollPanel;
 
 //TODO use HorizontalSplitPanel to split buffer and nicklist
 class WinView extends Composite implements Window.Listener {
-	private final TabWMView parent;
 	private final Window win;
 //	private final HorizontalSplitPanel panel;
 	private final HorizontalPanel panel;
 	private final BufferView bufferView;
 	private final NicklistView nicklistView;
 	
-	WinView(TabWMView parent, Window win) {
+	WinView(Window win) {
 		super();
-		this.parent = parent;
 		this.win = win;
-		win.setListener(this);
+		win.addListener(this);
 //		this.panel = new HorizontalSplitPanel();
 		this.panel = new HorizontalPanel();
 		initWidget(panel);
-		this.setSize("100%", "100%");
 		
 		this.bufferView = new BufferView();
-//		panel.setLeftWidget(bufferView);
-		panel.add(bufferView);
-//		bufferView.setHeight("100%");
-		bufferView.setSize("100%", "100%");
+		bufferView.setStylePrimaryName("buffer");
+		ScrollPanel bufferViewScroller = new ScrollPanel(bufferView);
+		bufferViewScroller.setStylePrimaryName("bufferScroller");
+		
+		DOM.setStyleAttribute(bufferViewScroller.getElement(), "position", "absolute");
+		
+//		panel.setLeftWidget(bufferViewScroller);
+		panel.add(bufferViewScroller);
 		
 		this.nicklistView = new NicklistView();
-//		panel.setRightWidget(nicklistView);
-		panel.add(nicklistView);
-		nicklistView.setSize("100px", "100%");
+		nicklistView.setStylePrimaryName("nicklist");
+		ScrollPanel nicklistViewScroller = new ScrollPanel(nicklistView);
+		nicklistViewScroller.setStylePrimaryName("nicklistScroller");
 		
-		panel.setCellWidth(bufferView, "90%");
-		panel.setCellHeight(bufferView, "100%");
-		panel.setCellWidth(nicklistView, "10%");
-		panel.setCellHeight(nicklistView, "100%");
+		DOM.setStyleAttribute(nicklistViewScroller.getElement(), "position", "absolute");
+		
+//		panel.setRightWidget(nicklistViewScroller);
+		panel.add(nicklistViewScroller);
+		
+		panel.setCellWidth(bufferViewScroller, "90%");
+		panel.setCellHeight(bufferViewScroller, "100%");
+		panel.setCellWidth(nicklistViewScroller, "10%");
+		panel.setCellHeight(nicklistViewScroller, "100%");
 	}
 
-	public void textPrinted(String text) {
-		bufferView.textPrinted(text);
-	}
-	
 	public Window getWin() {
 		return win;
 	}
+	
+	public void textPrinted(String text) {
+		bufferView.textPrinted(text);
+	}
 
 	public void windowItemChanged(WindowItem item) {
-		parent.winTitleChanged(this, win.getTitle());
 		nicklistView.setItem(item);
 	}
 	
 	public void nameChanged(String name) {
-		parent.winTitleChanged(this, win.getTitle());
+		// do nothing
 	}
 }

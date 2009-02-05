@@ -9,8 +9,26 @@ public class WindowManager {
 		void windowChanged(Window win);
 	}
 	
+	/**
+	 * Listener delegating to two other listeners
+	 */
+	private static class CompositeListener implements Listener {
+		private final Listener listener1;
+		private final Listener listener2;
+
+		private CompositeListener(Listener listener1, Listener listener2) {
+			this.listener1 = listener1;
+			this.listener2 = listener2;
+		}
+		
+		public void windowChanged(Window win) {
+			listener1.windowChanged(win);
+			listener2.windowChanged(win);
+		}
+	}
+	
 	private final Group<Window> windows = new Group<Window>();
-	//private Window activeWindow;
+	private Window activeWindow;
 	
 	private Listener listener;
 	
@@ -18,22 +36,25 @@ public class WindowManager {
 		return windows;
 	}
 	
-	public void setListener(Listener listener) {
-//		assert this.listener == null;
-		this.listener = listener;
-	}
-
-	Listener getListener() {
-		return listener;
+	public void addListener(Listener listener) {
+		if (this.listener == null)
+			this.listener = listener;
+		else
+			this.listener = new CompositeListener(this.listener, listener);
 	}
 
 	public void setActiveWindow(Window win) {
-		//activeWindow = win;
-		listener.windowChanged(win);
+		if (activeWindow != win) {
+			activeWindow = win;
+			listener.windowChanged(win);
+		}
 	}
 
-	// window active according to irssi model, not always same as active window in browser...
-//	public Window getActiveWindow() {
-//		return activeWindow;
-//	}
+	/**
+	 * Returns the active window.
+	 * This is the window that's active here, which is not always the same as the one in irssi.
+	 */
+	public Window getActiveWindow() {
+		return activeWindow;
+	}
 }

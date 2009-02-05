@@ -3,6 +3,7 @@ package org.irssi.webssi.client.view;
 import org.irssi.webssi.client.Controller;
 import org.irssi.webssi.client.model.Model;
 
+import com.google.gwt.user.client.ui.DockPanel;
 import com.google.gwt.user.client.ui.KeyboardListener;
 import com.google.gwt.user.client.ui.RootPanel;
 import com.google.gwt.user.client.ui.TextBox;
@@ -13,18 +14,30 @@ public class View {
 	
 	private final TextBox entryBox = new TextBox();
 	private final DebugView debugView = new DebugView();
-	private final TabWMView wmv;
+	private final WinDeck wmv;
 	
 	private Controller controller;
 	
-	public View(Model model) {
-		wmv = new TabWMView(model.getWm());
-		wmv.setWidth("100%");
+	public View(final Model model) {
+		wmv = new WinDeck(model.getWm());
+		wmv.setStylePrimaryName("winDeck");
 		
-		rootPanel.add(debugView);
-		rootPanel.add(wmv);
-		rootPanel.add(entryBox);
-		entryBox.setStyleName("entryBox");
+		WinTabBar winTabBar = new WinTabBar(model.getWm());
+		
+		DockPanel dock = new DockPanel();
+		dock.setStylePrimaryName("rootDock");
+		
+		dock.add(winTabBar, DockPanel.NORTH);
+		dock.add(wmv, DockPanel.CENTER);
+		dock.add(entryBox, DockPanel.SOUTH);
+
+		dock.setCellHeight(winTabBar, "20px");
+		dock.setCellHeight(entryBox, "30px");
+		
+		rootPanel.add(dock);
+		rootPanel.setStylePrimaryName("root");
+		
+		entryBox.setStylePrimaryName("entryBox");
 		entryBox.addKeyboardListener(new KeyboardListener() {
 			public void onKeyDown(Widget sender, char keyCode, int modifiers) {
 			}
@@ -36,7 +49,7 @@ public class View {
 				if (keyCode == KeyboardListener.KEY_ENTER) {
 					final String message = entryBox.getText();
 					if (message.trim().length() > 0) {
-						controller.sendLine(wmv.getActiveWinView().getWin(), message);
+						controller.sendLine(model.getWm().getActiveWindow(), message);
 					}
 					entryBox.setText("");
 				}

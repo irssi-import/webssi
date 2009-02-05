@@ -20,7 +20,6 @@ class BufferView extends SimplePanel {
 		
 		tbody = Document.get().createTBodyElement();
 		getElement().appendChild(tbody);
-		this.setStylePrimaryName("WinView");
 	}
 
 	void textPrinted(String text) {

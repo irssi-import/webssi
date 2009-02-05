@@ -8,6 +8,8 @@ import java.util.TreeSet;
 /**
  * Sorted collection of items, identifiable by a {@link String} Id.
  * A listener can be added for changes in the list of items.
+ * 
+ * @param <T> type of elements in the group
  */
 public class Group<T extends Comparable<T>> {
 	private final HashMap<String, T> idToItem = new HashMap<String, T>(); 
@@ -28,13 +30,45 @@ public class Group<T extends Comparable<T>> {
 		void itemMoved(T item, int oldIndex, int newIndex);
 	}
 	
-	public void setListener(Listener<T> listener) {
-		this.listener = listener;
+	/**
+	 * Listener delegating to two other listeners
+	 */
+	private static class CompositeListener<T> implements Listener<T> {
+		private final Listener<T> listener1;
+		private final Listener<T> listener2;
+
+		private CompositeListener(Listener<T> listener1, Listener<T> listener2) {
+			this.listener1 = listener1;
+			this.listener2 = listener2;
+		}
+
+		public void itemAdded(T item, int index) {
+			listener1.itemAdded(item, index);
+			listener2.itemAdded(item, index);
+		}
+
+		public void itemMoved(T item, int oldIndex, int newIndex) {
+			listener1.itemMoved(item, oldIndex, newIndex);
+			listener2.itemMoved(item, oldIndex, newIndex);
+		}
+
+		public void itemRemoved(T item, int index) {
+			listener1.itemRemoved(item, index);
+			listener2.itemRemoved(item, index);
+		}
+	}
+	
+	public void addListener(Listener<T> listener) {
+		if (this.listener == null)
+			this.listener = listener;
+		else
+			this.listener = new CompositeListener<T>(this.listener, listener);
 	}
 	
 	/**
 	 * Get the listener. For JUnit tests only.
 	 */
+	@Deprecated
 	Listener<T> getListener() {
 		return listener;
 	}
@@ -121,11 +155,9 @@ public class Group<T extends Comparable<T>> {
 	}
 
 	/**
-	 * For JUnit tests
+	 * Returns true if this Group contains the given item.
 	 */
-	public void clear() {
-		idToItem.clear();
-		sortedItems.clear();
-		listener = null;
+	public boolean contains(T item) {
+		return sortedItems.contains(item);
 	}
 }

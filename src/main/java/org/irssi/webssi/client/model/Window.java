@@ -10,6 +10,34 @@ public class Window implements Comparable<Window> {
 		void windowItemChanged(WindowItem item);
 	}
 	
+	/**
+	 * Listener delegating to two other listeners
+	 */
+	private static class CompositeListener implements Listener {
+		private final Listener listener1;
+		private final Listener listener2;
+
+		private CompositeListener(Listener listener1, Listener listener2) {
+			this.listener1 = listener1;
+			this.listener2 = listener2;
+		}
+
+		public void nameChanged(String name) {
+			listener1.nameChanged(name);
+			listener2.nameChanged(name);
+		}
+
+		public void textPrinted(String text) {
+			listener1.textPrinted(text);
+			listener2.textPrinted(text);
+		}
+
+		public void windowItemChanged(WindowItem item) {
+			listener1.windowItemChanged(item);
+			listener2.windowItemChanged(item);
+		}
+	}
+	
 	private final String id;
 	private String name;
 	private int refnum;
@@ -41,12 +69,11 @@ public class Window implements Comparable<Window> {
 		return id;
 	}
 
-	public void setListener(Window.Listener listener) {
-		this.listener = listener;
-	}
-	
-	Window.Listener getListener() {
-		return listener;
+	public void addListener(Window.Listener listener) {
+		if (this.listener == null)
+			this.listener = listener;
+		else
+			this.listener = new CompositeListener(this.listener, listener);
 	}
 	
 	public Group<WindowItem> getItems() {
@@ -84,6 +111,11 @@ public class Window implements Comparable<Window> {
 	}
 	
 	public int compareTo(Window o) {
-		return this == o ? 0 : this.refnum < o.refnum ? -1 : 1;
+		if (this == o)
+			return 0;
+		else if (this.refnum != o.refnum)
+			return this.refnum < o.refnum ? -1 : 1;
+		else // refnums of two different windows can temporarily be the same when windows are moving
+			return this.hashCode() < o.hashCode() ? -1 : 1; // it doesn't matter which comes first, as long as it is consistent
 	}
 }

@@ -1,5 +1,6 @@
 package org.irssi.webssi.client;
 
+import org.irssi.webssi.client.model.Model;
 import org.irssi.webssi.client.model.Window;
 import org.irssi.webssi.client.view.View;
 
@@ -9,13 +10,24 @@ import org.irssi.webssi.client.view.View;
  * @author Wouter Coekaerts <wouter@coekaerts.be>
  */
 public class Controller {
+	private final Model model;
 	private final View view;
 	private final Link link;
 
-	public Controller(View view, Link link) {
+	public Controller(Model model, View view, Link link) {
+		this.model = model;
 		this.view = view;
 		this.link = link;
 		view.setController(this);
+	}
+	
+	/**
+	 * Activate the given window.
+	 * For now this only activates it locally, not in irssi.
+	 */
+	public void activateWindow(Window window) {
+		model.getWm().setActiveWindow(window);
+		// TODO also activate the window in irssi through link
 	}
 	
 	/**

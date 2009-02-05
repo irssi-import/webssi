@@ -20,7 +20,7 @@ class NicklistView extends Composite implements Group.Listener<Nick> {
 	void setItem(WindowItem item)  {
 		if (item instanceof Channel) {
 			Channel channel = (Channel) item;
-			channel.getNicks().setListener(this);
+			channel.getNicks().addListener(this);
 			
 			table.clear();
 			int row = 0;

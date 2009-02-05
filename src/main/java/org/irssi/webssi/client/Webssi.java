@@ -25,7 +25,7 @@ public class Webssi implements EntryPoint {
 		
 		View view = new View(model);
 
-		controller = new Controller(view, link);
+		controller = new Controller(model, view, link);
 		jsonLink.setListener(controller);
 	}
 

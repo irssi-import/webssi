@@ -1,5 +1,8 @@
 package org.irssi.webssi.client;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.irssi.webssi.client.expect.ExpectListener;
 import org.irssi.webssi.client.expect.ExpectSession;
 import org.irssi.webssi.client.expect.Expectable;
@@ -24,6 +27,14 @@ import com.google.gwt.user.client.DeferredCommand;
  */
 public abstract class AbstractExpectTest extends GWTTestCase {
 	protected ExpectSession expectSession;
+	
+	/**
+	 * Set of objects we're listening on.
+	 * (We could have different sets for different kind of objects/listeners,
+	 *  but we only use it to check if something is already in it,
+	 *  so there's no need for more type safety)
+	 */
+	private Set<Object> listening = new HashSet<Object>();
 	
 	@Override
 	protected void gwtSetUp() throws Exception {
@@ -74,15 +85,18 @@ public abstract class AbstractExpectTest extends GWTTestCase {
 	}
 	
 	protected final <T extends Comparable<T>> void listen(TestGroupListener.ElementType<T> type, Group<T> group) {
-		TestGroupListener.listen(expectSession, type, group);
+		if (listening.add(group))
+			TestGroupListener.listen(expectSession, type, group);
 	}
 	
 	protected final void listen(WindowManager wm) {
-		TestWindowManagerListener.listen(expectSession, wm);
+		if (listening.add(wm))
+			TestWindowManagerListener.listen(expectSession, wm);
 	}
 	
 	protected final void listen(Window win) {
-		TestWindowListener.listen(expectSession, win);
+		if (listening.add(win))
+			TestWindowListener.listen(expectSession, win);
 	}
 	
 	private static final Expectable<Object> LATER = Expectable.declareExpectable("later");
