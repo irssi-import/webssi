@@ -13,6 +13,7 @@ class WinView extends Composite implements Window.Listener {
 	private final Window win;
 //	private final HorizontalSplitPanel panel;
 	private final HorizontalPanel panel;
+	private final ScrollPanel bufferViewScroller;
 	private final BufferView bufferView;
 	private final NicklistView nicklistView;
 	
@@ -26,7 +27,7 @@ class WinView extends Composite implements Window.Listener {
 		
 		this.bufferView = new BufferView();
 		bufferView.setStylePrimaryName("buffer");
-		ScrollPanel bufferViewScroller = new ScrollPanel(bufferView);
+		bufferViewScroller = new ScrollPanel(bufferView);
 		bufferViewScroller.setStylePrimaryName("bufferScroller");
 		
 		DOM.setStyleAttribute(bufferViewScroller.getElement(), "position", "absolute");
@@ -55,7 +56,16 @@ class WinView extends Composite implements Window.Listener {
 	}
 	
 	public void textPrinted(String text) {
+		int bufferHeight = bufferView.getOffsetHeight();
+		int scrollerHeight = bufferViewScroller.getOffsetHeight();
+		int position = bufferViewScroller.getScrollPosition();
+		int bottom = bufferHeight - position;
+		boolean atBottom = (bottom <= scrollerHeight);
+			
 		bufferView.textPrinted(text);
+		
+		if (atBottom)
+			bufferViewScroller.scrollToBottom();
 	}
 
 	public void windowItemChanged(WindowItem item) {
