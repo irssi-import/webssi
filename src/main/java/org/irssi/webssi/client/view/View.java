@@ -24,13 +24,17 @@ public class View {
 		
 		WinTabBar winTabBar = new WinTabBar(model.getWm());
 		
+		ItemTreeView itemTreeView = new ItemTreeView(model.getServers());
+		
 		DockPanel dock = new DockPanel();
 		dock.setStylePrimaryName("rootDock");
 		
+		dock.add(itemTreeView, DockPanel.WEST);
 		dock.add(winTabBar, DockPanel.NORTH);
 		dock.add(wmv, DockPanel.CENTER);
 		dock.add(entryBox, DockPanel.SOUTH);
 
+		dock.setCellWidth(itemTreeView, "100px");
 		dock.setCellHeight(winTabBar, "20px");
 		dock.setCellHeight(entryBox, "30px");
 		

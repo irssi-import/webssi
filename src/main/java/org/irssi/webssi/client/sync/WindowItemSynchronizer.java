@@ -4,6 +4,7 @@ import org.irssi.webssi.client.Link;
 import org.irssi.webssi.client.events.EventHandler;
 import org.irssi.webssi.client.events.WindowEvent;
 import org.irssi.webssi.client.events.WindowItemEvent;
+import org.irssi.webssi.client.events.WindowItemMovedEvent;
 import org.irssi.webssi.client.events.WindowItemNewEvent;
 import org.irssi.webssi.client.model.Channel;
 import org.irssi.webssi.client.model.Group;
@@ -13,20 +14,22 @@ import org.irssi.webssi.client.model.WindowItem;
 class WindowItemSynchronizer extends Synchronizer<WindowItem, WindowItemEvent, WindowItemNewEvent> {
 	private final ModelLocator<Window, WindowEvent> winLocator;
 	
-	/**
-	 * Last item that was removed. Keeping a reference to this because it might actually be moved
-	 */
-	private WindowItem lastRemoved;
-	
-	/**
-	 * Id of the last item that was removed
-	 */
-	private String lastRemovedId;
-
 	WindowItemSynchronizer(final ModelLocator<Window, WindowEvent> winLocator, Link link) {
 		super("window item", link);
 		this.winLocator = winLocator;
-		link.setEventHandler("window item changed", new EventHandler<WindowItemEvent>() {
+		link.addEventHandler("window item moved", new EventHandler<WindowItemMovedEvent>() {
+			public void handle(WindowItemMovedEvent event) {
+				String id = getId(event);
+				WindowItem item = getModelFrom(event);
+				Window oldWindow = winLocator.getModelFrom(event);
+				Window newWindow = winLocator.getModelFrom(event.getNewWindowEvent());
+				oldWindow.getItems().removeItem(id, item);
+				removed(event, item);
+				newWindow.getItems().addItem(id, item);
+				newWindow.setActiveItem(item);
+			}
+		});
+		link.addEventHandler("window item changed", new EventHandler<WindowItemEvent>() {
 			public void handle(WindowItemEvent event) {
 				winLocator.getModelFrom(event).setActiveItem(getItem(event));
 			}
@@ -35,16 +38,10 @@ class WindowItemSynchronizer extends Synchronizer<WindowItem, WindowItemEvent, W
 	
 	@Override
 	protected WindowItem createNew(WindowItemNewEvent event) {
-		if (event.getItemId().equals(lastRemovedId)) {
-			// it's not really a new item, it got moved here from another window
-			return lastRemoved;
+		if ("channel".equals(event.getItemType())) {
+			return new Channel(event.getVisibleName());
 		} else {
-			if ("channel".equals(event.getItemType())) {
-				return new Channel(event.getVisibleName());
-			} else {
-				return new WindowItem(event.getVisibleName());
-			}
-
+			return new WindowItem(event.getVisibleName());
 		}
 	}
 
@@ -69,7 +66,5 @@ class WindowItemSynchronizer extends Synchronizer<WindowItem, WindowItemEvent, W
 		Window win = winLocator.getModelFrom(event);
 		if (item == win.getActiveItem())
 			win.setActiveItem(null);
-		lastRemoved = item;
-		lastRemovedId = event.getItemId();
 	}
 }

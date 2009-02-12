@@ -70,7 +70,7 @@ public class WebssiTest extends AbstractExpectTest {
 		return expectSession.createRoot()
 		.react(new Reaction<Object>() {
 			public void run(Object param) {
-				link.addSecondaryEventHandler(eventName, new EventHandler<JsonEvent>() {
+				link.addEventHandler(eventName, new EventHandler<JsonEvent>() {
 					boolean done;
 					public void handle(JsonEvent event) {
 						if (!done) {

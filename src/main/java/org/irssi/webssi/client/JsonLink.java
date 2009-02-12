@@ -69,12 +69,12 @@ class JsonLink implements Link {
 	};
 	
 	public JsonLink() {
-		setEventHandler("init", new EventHandler<InitEvent>() {
+		addEventHandler("init", new EventHandler<InitEvent>() {
 			public void handle(InitEvent event) {
 				JsonLink.this.sessionId = event.getSessionId();
 			}
 		});
-		setEventHandler("request superseded", new EventHandler<JsonEvent>() {
+		addEventHandler("request superseded", new EventHandler<JsonEvent>() {
 			public void handle(JsonEvent event) {
 				// do nothing
 			}
@@ -87,24 +87,14 @@ class JsonLink implements Link {
 		this.listener = listener;
 	}
 	
-	/**
-	 * Sets the handler for events of the given type.
-	 * The event type may not have a handler yet.
-	 */
-	public void setEventHandler(String type, EventHandler<?> handler) {
-		assert ! eventHandlers.containsKey(type);
-		eventHandlers.put(type, handler);
-	}
-
-	/**
-	 * Add a second handler on an event type that already has a handler.
-	 * This is for JUnit tests only.
-	 */
-	public void addSecondaryEventHandler(String type, EventHandler<?> handler) {
+	public void addEventHandler(String type, EventHandler<?> handler) {
 		EventHandler<?> existingHandler = eventHandlers.get(type);
-		assert existingHandler != null;
-		EventHandler<?> composite = CompositeEventHandler.compose(existingHandler, handler);
-		eventHandlers.put(type, composite);
+		if (existingHandler == null) {
+			eventHandlers.put(type, handler);
+		} else {
+			EventHandler<?> composite = CompositeEventHandler.compose(existingHandler, handler);
+			eventHandlers.put(type, composite);
+		}
 	}
 	
 	/**

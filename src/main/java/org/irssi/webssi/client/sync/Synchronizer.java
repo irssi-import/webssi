@@ -20,7 +20,7 @@ abstract class Synchronizer<T extends Comparable<T>, E extends JsonEvent, N exte
 	 * @param link The link to add event handlers on.
 	 */
 	Synchronizer(String eventPrefix, Link link) {
-		link.setEventHandler(eventPrefix + " new", new EventHandler<N>() {
+		link.addEventHandler(eventPrefix + " new", new EventHandler<N>() {
 			public void handle(N event) {
 				T item = createNew(event.<N>cast());
 				Group<T> group = getGroup(event);
@@ -29,7 +29,7 @@ abstract class Synchronizer<T extends Comparable<T>, E extends JsonEvent, N exte
 			};
 		});
 		
-		link.setEventHandler(eventPrefix + " remove", new EventHandler<E>() {
+		link.addEventHandler(eventPrefix + " remove", new EventHandler<E>() {
 			public void handle(E event) {
 				T item = getItem(event);
 				Group<T> group = getGroup(event);
@@ -86,15 +86,21 @@ abstract class Synchronizer<T extends Comparable<T>, E extends JsonEvent, N exte
 		String handle(T event);
 	}
 	
+	/**
+	 * Returns the new item created by the given event.
+	 */
 	protected abstract T createNew(N event);
 	
+	/**
+	 * Returns the item this event applies to.
+	 */
 	final T getItem(E event) {
 		return getGroup(event).getFromId(getId(event));
 	}
 	
 	final public T getModelFrom(E event) {
 		return getGroup(event).getFromId(getId(event));
-	}	
+	}
 	
 	protected abstract String getId(E event);
 	

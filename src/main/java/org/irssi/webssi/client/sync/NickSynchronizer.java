@@ -16,7 +16,7 @@ class NickSynchronizer extends Synchronizer<Nick, NicklistEvent, NicklistNewEven
 	NickSynchronizer(ModelLocator<WindowItem, WindowItemEvent> windowItemLocator, Link link) {
 		super("nicklist", link);
 		this.windowItemLocator = windowItemLocator;
-		link.setEventHandler("nicklist changed", wrapChangingEventHandler(new IdChangingEventHandler<NicklistChangedEvent>() {
+		link.addEventHandler("nicklist changed", wrapChangingEventHandler(new IdChangingEventHandler<NicklistChangedEvent>() {
 			public String handle(NicklistChangedEvent event) {
 				Nick nick = getItem(event);
 				nick.setName(event.getNewName());

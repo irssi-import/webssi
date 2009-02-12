@@ -209,6 +209,9 @@ sub ev_window_item($$$$) {
 	my ($type, $window, $item, $args) = @_;
 	my $result = ev_window($type, $window, $args);
 	$result->{item} = item_to_id($item);
+	if ($item->{server}) {
+		$result->{tag} = $item->{server}->{tag};
+	}
 	return $result;
 }
 
@@ -244,6 +247,18 @@ sub ev_window_item_new($$) {
 		$result->{'item_type'} = 'channel';
 	}
 	return $result;
+}
+
+sub ev_server($$$) {
+	my ($type, $server, $args) = @_;
+	my $result = ev($type, $args);
+	$result->{tag} = $server->{tag};
+	return $result;
+}
+
+sub ev_server_new($) {
+	my ($server) = @_;
+	return ev_server('server new', $server, {});
 }
 
 ########## OBJECT MAPPING ##########
@@ -326,6 +341,9 @@ sub map_full_nick($) {
 sub add_init_events($) {
 	my ($session) = @_;
 	add_event($session, ev('init', {sessionid => $session->{id}}));
+	foreach my $server (Irssi::servers()) {
+		add_event($session, ev_server_new($server));
+	}
 	foreach my $win (Irssi::windows()) {
 		add_event($session, ev('window new', map_full_window($win)));
 		foreach my $item ($win->items()) {
@@ -340,7 +358,7 @@ sub add_init_events($) {
 	add_event($session, ev('window changed', {'window' => window_to_id(Irssi::active_win())}));
 }
 
-########## STANDARD SIGNALS ##########
+########## SIGNALS ##########
 
 # $param_names = array of names of parameters, or undefined if there is only one, unnamed param
 # $param_full = index of parameter that has to be mapped fully, or -1 if none
@@ -381,7 +399,6 @@ Irssi::signal_add('window destroyed', sub {
 
 register_standard_signal('window changed', ['window', 'old']);
 #register_standard_signal('window changed automatic', ['window', 'old']);
-#register_standard_signal('window refnum changed', ['window']);
 
 Irssi::signal_add('window item new', sub {
 	my ($win, $item) = @_;
@@ -391,6 +408,11 @@ Irssi::signal_add('window item new', sub {
 Irssi::signal_add('window item remove', sub {
 	my ($window, $item) = @_;
 	add_event_all(ev_window_item('window item remove', $window, $item, {}));
+});
+
+Irssi::signal_add('window item moved', sub {
+	my ($window, $item, $old_window) = @_;
+	add_event_all(ev_window_item('window item moved', $old_window, $item, {new_window_event => ev_window(undef, $window, {})}));
 });
 
 Irssi::signal_add('window item changed', sub {
@@ -431,7 +453,16 @@ Irssi::signal_add('window name changed', sub {
 	add_event_all(ev('window name changed', {'window' => window_to_id($window), 'name' => $window->{'name'}}));
 });
 
-########## CUSTOM SIGNALS ##########
+Irssi::signal_add('server connected', sub {
+	my ($server) = @_;
+	add_event_all(ev('server new', {tag => $server->{tag}}));
+});
+
+Irssi::signal_add('server disconnected', sub {
+	my ($server) = @_;
+	add_event_all(ev('server remove', {tag => $server->{tag}}));
+});
+
 # Catch 'print text' as late as possible (Irssi::SIGNAL_PRIORITY_LOW == 100)
 Irssi::signal_add_priority('print text', \&sig_print_text, 200);
 # set to a positive number if lines being printed should be ignored (to prevent infinite recursion on errors or debug messages) 

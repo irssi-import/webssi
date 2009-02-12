@@ -17,24 +17,24 @@ class WindowSynchronizer extends Synchronizer<Window, WindowEvent, WindowCreated
 	WindowSynchronizer(final Model model, Link link) {
 		super("window", link);
 		this.model = model;
-		link.setEventHandler("window changed", new EventHandler<WindowEvent>() {
+		link.addEventHandler("window changed", new EventHandler<WindowEvent>() {
 			public void handle(WindowEvent event) {
 				model.getWm().setActiveWindow(getModelFrom(event));
 			}
 		});
 		// TODO it's not id changing(?), but it is order changing
-		link.setEventHandler("window refnum changed", wrapChangingEventHandler(new IdChangingEventHandler<WindowRefnumChangedEvent>() {
+		link.addEventHandler("window refnum changed", wrapChangingEventHandler(new IdChangingEventHandler<WindowRefnumChangedEvent>() {
 			public String handle(WindowRefnumChangedEvent event) {
 				getModelFrom(event).setRefnum(event.getRefnum());
 				return event.getWinId();
 			}
 		}));
-		link.setEventHandler("window name changed", new EventHandler<WindowNameChangedEvent>() {
+		link.addEventHandler("window name changed", new EventHandler<WindowNameChangedEvent>() {
 			public void handle(WindowNameChangedEvent event) {
 				getModelFrom(event).setName(event.getName());
 			}
 		});
-		link.setEventHandler("T", new EventHandler<TextEvent>() {
+		link.addEventHandler("T", new EventHandler<TextEvent>() {
 			public void handle(TextEvent event) {
 				getModelFrom(event).printText(event.getText());
 			}
