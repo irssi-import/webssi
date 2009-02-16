@@ -2,29 +2,35 @@ package org.irssi.webssi.client.sync;
 
 import org.irssi.webssi.client.Link;
 import org.irssi.webssi.client.events.EventHandler;
+import org.irssi.webssi.client.events.ServerEvent;
 import org.irssi.webssi.client.events.WindowEvent;
 import org.irssi.webssi.client.events.WindowItemEvent;
 import org.irssi.webssi.client.events.WindowItemMovedEvent;
 import org.irssi.webssi.client.events.WindowItemNewEvent;
 import org.irssi.webssi.client.model.Channel;
 import org.irssi.webssi.client.model.Group;
+import org.irssi.webssi.client.model.Server;
 import org.irssi.webssi.client.model.Window;
 import org.irssi.webssi.client.model.WindowItem;
 
 class WindowItemSynchronizer extends Synchronizer<WindowItem, WindowItemEvent, WindowItemNewEvent> {
 	private final ModelLocator<Window, WindowEvent> winLocator;
+	private final ModelLocator<Server, ServerEvent> serverLocator;
 	
-	WindowItemSynchronizer(final ModelLocator<Window, WindowEvent> winLocator, Link link) {
+	WindowItemSynchronizer(final ModelLocator<Window, WindowEvent> winLocator, ModelLocator<Server, ServerEvent> serverLocator, Link link) {
 		super("window item", link);
 		this.winLocator = winLocator;
+		this.serverLocator = serverLocator;
 		link.addEventHandler("window item moved", new EventHandler<WindowItemMovedEvent>() {
 			public void handle(WindowItemMovedEvent event) {
 				String id = getId(event);
 				WindowItem item = getModelFrom(event);
 				Window oldWindow = winLocator.getModelFrom(event);
+				assert oldWindow == item.getWin();
 				Window newWindow = winLocator.getModelFrom(event.getNewWindowEvent());
 				oldWindow.getItems().removeItem(id, item);
 				removed(event, item);
+				item.setWin(newWindow);
 				newWindow.getItems().addItem(id, item);
 				newWindow.setActiveItem(item);
 			}
@@ -38,10 +44,12 @@ class WindowItemSynchronizer extends Synchronizer<WindowItem, WindowItemEvent, W
 	
 	@Override
 	protected WindowItem createNew(WindowItemNewEvent event) {
+		Server server = serverLocator.getModelFrom(event.<ServerEvent>cast());
+		Window win = winLocator.getModelFrom(event);
 		if ("channel".equals(event.getItemType())) {
-			return new Channel(event.getVisibleName());
+			return new Channel(event.getVisibleName(), server, win);
 		} else {
-			return new WindowItem(event.getVisibleName());
+			return new WindowItem(event.getVisibleName(), server, win);
 		}
 	}
 

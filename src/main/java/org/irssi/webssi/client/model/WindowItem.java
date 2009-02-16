@@ -5,13 +5,29 @@ package org.irssi.webssi.client.model;
  */
 public class WindowItem implements Comparable<WindowItem> {
 	private String visibleName;
+	private final Server server;
+	private Window win;
 	
-	public WindowItem(String visibleName) {
+	public WindowItem(String visibleName, Server server, Window win) {
 		this.visibleName = visibleName;
+		this.server = server;
+		this.win = win;
 	}
 	
 	public String getVisibleName() {
 		return visibleName;
+	}
+	
+	public Server getServer() {
+		return server;
+	}
+	
+	public Window getWin() {
+		return win;
+	}
+	
+	public void setWin(Window win) {
+		this.win = win;
 	}
 	
 	public int compareTo(WindowItem item) {

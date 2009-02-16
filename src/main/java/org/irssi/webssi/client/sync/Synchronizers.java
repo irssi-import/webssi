@@ -9,9 +9,9 @@ import org.irssi.webssi.client.model.Model;
 public class Synchronizers {
 	public static void init(Model model, Link link) {
 		WindowSynchronizer winSync = new WindowSynchronizer(model, link);
-		WindowItemSynchronizer wiSync = new WindowItemSynchronizer(winSync, link);
-		new NickSynchronizer(wiSync, link);
 		ServerSynchronizer serverSync = new ServerSynchronizer(model, link);
+		WindowItemSynchronizer wiSync = new WindowItemSynchronizer(winSync, serverSync, link);
+		new NickSynchronizer(wiSync, link);
 		new ServerItemSynchronizer(model.getNoServerWindowItems(), serverSync, wiSync, link);
 	}
 }

@@ -7,6 +7,7 @@ import org.irssi.webssi.client.model.Group;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.Tree;
 import com.google.gwt.user.client.ui.TreeItem;
+import com.google.gwt.user.client.ui.TreeListener;
 
 /**
  * Shows a hierarchy of {@link Group}s in a tree.
@@ -23,6 +24,7 @@ class GroupTreeView extends Composite {
 		Group<S> getChildren(T item);
 		Level<S, ?> getNextLevel();
 		TreeItem getTreeItem(T item);
+		void onTreeItemSelected(T item);
 	}
 	
 	/**
@@ -55,6 +57,7 @@ class GroupTreeView extends Composite {
 		
 		private <S extends Comparable<S>> TreeItem buildItem(T item, Level<T, S> level) {
 			TreeItem treeItem = level.getTreeItem(item);
+			treeItem.setUserObject(new TreeItemUserObject<T>(level, item));
 			Level<S, ?> nextLevel = level.getNextLevel();
 			if (nextLevel != null) {
 				Group<S> children = level.getChildren(item);
@@ -153,9 +156,47 @@ class GroupTreeView extends Composite {
 		}
 	}
 	
-	<T extends Comparable<T>> GroupTreeView(Group<T> roots, Level<T, ?> topLevel) {
-		Tree tree = new Tree();
+	private static class TreeItemUserObject<T> {
+		private final Level<T, ?> level;
+		private final T item;
+		
+		private TreeItemUserObject(Level<T, ?> level, T item) {
+			super();
+			this.level = level;
+			this.item = item;
+		}
+		
+		private void onTreeItemSelected() {
+			level.onTreeItemSelected(item);
+		}
+	}
+	
+	private static final TreeListener TREE_LISTENER = new TreeListener() {
+		public void onTreeItemSelected(TreeItem item) {
+			((TreeItemUserObject<?>)item.getUserObject()).onTreeItemSelected();
+		}
+
+		public void onTreeItemStateChanged(TreeItem item) {
+			// do nothing
+		}
+	};
+	
+	private final Tree tree;
+	
+	GroupTreeView() {
+		tree = new Tree();
 		initWidget(tree);
+		tree.addTreeListener(TREE_LISTENER);
+	}
+	
+	protected <T extends Comparable<T>> void init(Group<T> roots, Level<T, ?> topLevel) {
 		new TopHandler<T>(tree, roots, topLevel);
+	}
+	
+	/**
+	 * Gets the tree component. Should only be used by subclasses.
+	 */
+	protected Tree getTree() {
+		return tree;
 	}
 }

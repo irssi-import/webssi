@@ -15,6 +15,7 @@ public class View {
 	private final TextBox entryBox = new TextBox();
 	private final DebugView debugView = new DebugView();
 	private final WinDeck wmv;
+	private final ItemTreeView itemTreeView;
 	
 	private Controller controller;
 	
@@ -24,7 +25,7 @@ public class View {
 		
 		WinTabBar winTabBar = new WinTabBar(model.getWm());
 		
-		ItemTreeView itemTreeView = new ItemTreeView(model.getServers());
+		itemTreeView = new ItemTreeView(model.getServers(), model.getWm());
 		
 		DockPanel dock = new DockPanel();
 		dock.setStylePrimaryName("rootDock");
@@ -67,5 +68,6 @@ public class View {
 
 	public void setController(Controller controller) {
 		this.controller = controller;
+		itemTreeView.setController(controller);
 	}
 }

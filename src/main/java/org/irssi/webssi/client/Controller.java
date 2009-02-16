@@ -2,6 +2,7 @@ package org.irssi.webssi.client;
 
 import org.irssi.webssi.client.model.Model;
 import org.irssi.webssi.client.model.Window;
+import org.irssi.webssi.client.model.WindowItem;
 import org.irssi.webssi.client.view.View;
 
 /**
@@ -28,6 +29,13 @@ public class Controller {
 	public void activateWindow(Window window) {
 		model.getWm().setActiveWindow(window);
 		// TODO also activate the window in irssi through link
+	}
+	
+	public void activateWindowItem(WindowItem item) {
+		Window window = item.getWin();
+		window.setActiveItem(item);
+		activateWindow(window);
+		// TODO also activate the window item in irssi through link
 	}
 	
 	/**
