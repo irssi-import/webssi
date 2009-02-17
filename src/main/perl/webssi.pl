@@ -553,7 +553,7 @@ sub cmd_send_line($$) {
 		$win = Irssi::active_win();
 	}
 	
-	$win->command($line);
+	$win->command($command);
 }
 
 ########## DEBUG ##########
