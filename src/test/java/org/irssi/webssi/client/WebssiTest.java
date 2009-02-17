@@ -30,13 +30,13 @@ public class WebssiTest extends AbstractExpectTest {
 	private Model model;
 	
 	private void sendCommand(String command) {
-		link.sendLine(null, command);
+		webssi.getController().sendLine(null, command);
 	}
 	
 	private Reaction<Object> sendCommandReaction(final Ref<Window> win, final String command) {
 		return new SimpleReaction() {
 			public void run() {
-				link.sendLine(win.value.getId(), command);
+				webssi.getController().sendLine(win.value, command);
 			}
 		};
 	}
