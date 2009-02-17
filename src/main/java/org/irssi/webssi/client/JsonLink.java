@@ -2,6 +2,7 @@ package org.irssi.webssi.client;
 
 import java.util.HashMap;
 
+import org.irssi.webssi.client.command.Command;
 import org.irssi.webssi.client.events.CompositeEventHandler;
 import org.irssi.webssi.client.events.EventHandler;
 import org.irssi.webssi.client.events.InitEvent;
@@ -16,7 +17,6 @@ import com.google.gwt.http.client.RequestTimeoutException;
 import com.google.gwt.http.client.Response;
 import com.google.gwt.json.client.JSONArray;
 import com.google.gwt.json.client.JSONObject;
-import com.google.gwt.json.client.JSONString;
 import com.google.gwt.user.client.Timer;
 
 /**
@@ -213,21 +213,8 @@ class JsonLink implements Link {
 		handler.handle(event.<T>cast());
 	}
 	
-	private JSONObject newCommand(String type) {
-		JSONObject cmd = new JSONObject();
-		cmd.put("type", new JSONString(type));
-		return cmd;
-	}
-	
-	private void setParam(JSONObject cmd, String paramName, String value) {
-		cmd.put(paramName, new JSONString(value));
-	}
-
-	public void sendLine(String win, String line) {
-		JSONObject cmd = newCommand("sendLine");
-		if (win != null)
-			setParam(cmd, "win", win);
-		setParam(cmd, "line", line);
+	public void sendCommand(Command command) {
+		JSONObject cmd = new JSONObject(command.createJS());
 		commandQueue.set(commandQueue.size(), cmd);
 		sync();
 	}

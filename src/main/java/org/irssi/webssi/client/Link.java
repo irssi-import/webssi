@@ -1,12 +1,16 @@
 package org.irssi.webssi.client;
 
+import org.irssi.webssi.client.command.Command;
 import org.irssi.webssi.client.events.EventHandler;
 
 /**
  * Handles communication to irssi.
  */
 public interface Link {
-	public void sendLine(String win, String command);
+	/**
+	 * Add the given command to the command queue, and schedule a sync.
+	 */
+	public void sendCommand(Command command);
 	
 	/**
 	 * Register the given handler to be called every time we receive an event of the given type.

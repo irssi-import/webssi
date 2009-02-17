@@ -7,11 +7,13 @@ public class WindowItem implements Comparable<WindowItem> {
 	private String visibleName;
 	private final Server server;
 	private Window win;
+	private final String id;
 	
-	public WindowItem(String visibleName, Server server, Window win) {
+	public WindowItem(String visibleName, Server server, Window win, String id) {
 		this.visibleName = visibleName;
 		this.server = server;
 		this.win = win;
+		this.id = id;
 	}
 	
 	public String getVisibleName() {
@@ -37,5 +39,9 @@ public class WindowItem implements Comparable<WindowItem> {
 		if (visibleNameComparison != 0)
 			return visibleNameComparison;
 		return this.hashCode() < item.hashCode() ? -1 : 1; // random consistent order
+	}
+	
+	public String getId() {
+		return id;
 	}
 }

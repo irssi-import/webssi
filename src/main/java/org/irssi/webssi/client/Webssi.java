@@ -36,6 +36,10 @@ public class Webssi implements EntryPoint {
 	public Model getModel() {
 		return model;
 	}
+
+	public Controller getController() {
+		return controller;
+	}
 	
 	/**
 	 * For JUnit tests

@@ -1,5 +1,6 @@
 package org.irssi.webssi.client.view;
 
+import org.irssi.webssi.client.Controller;
 import org.irssi.webssi.client.model.Group;
 import org.irssi.webssi.client.model.Window;
 import org.irssi.webssi.client.model.WindowItem;
@@ -67,6 +68,7 @@ public class WinTabBar extends Composite implements WindowManager.Listener, Grou
 	
 	private final MoveableTabBar tabBar;
 	private final WindowManager wm;
+	private Controller controller;
 	
 	public WinTabBar(WindowManager wm) {
 		this.wm = wm;
@@ -99,7 +101,7 @@ public class WinTabBar extends Composite implements WindowManager.Listener, Grou
 	}
 
 	public void onTabSelected(SourcesTabEvents sender, int tabIndex) {
-		wm.setActiveWindow(getWindowForTab(tabIndex));
+		controller.activateWindow(getWindowForTab(tabIndex));
 	}
 	
 	private Window getWindowForTab(int tabIndex) {
@@ -110,5 +112,9 @@ public class WinTabBar extends Composite implements WindowManager.Listener, Grou
 				return window;
 		}
 		throw new AssertionError("No window for tab " + tabIndex);
+	}
+	
+	public void setController(Controller controller) {
+		this.controller = controller;
 	}
 }

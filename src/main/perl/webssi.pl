@@ -537,11 +537,16 @@ sub processCommands($$) {
 			return;
 		}
 
-		debug("COMMAND: " . Dumper($command));
 		if ($command->{'type'} eq 'sendLine') {
 			my $win = id_to_window($command->{'win'});
 			my $line = $command->{'line'};
 			cmd_send_line($win, $line);
+		} elsif ($command->{type} eq 'activateWindow') {
+			my $win = id_to_window($command->{'win'});
+			cmd_activate_window($win);
+		} elsif ($command->{type} eq 'activateWindowItem') {
+			my $item = id_to_item($command->{'item'});
+			cmd_activate_window_item($item);
 		}
 	}
 }
@@ -554,6 +559,16 @@ sub cmd_send_line($$) {
 	}
 	
 	$win->command($command);
+}
+
+sub cmd_activate_window($) {
+	my ($win) = @_;
+	$win->set_active();
+}
+
+sub cmd_activate_window_item($) {
+	my ($item) = @_;
+	$item->set_active();
 }
 
 ########## DEBUG ##########

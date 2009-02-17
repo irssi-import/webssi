@@ -6,8 +6,8 @@ package org.irssi.webssi.client.model;
 public class Channel extends WindowItem {
 	private Group<Nick> nicks = new Group<Nick>();
 	
-	public Channel(String visibleName, Server server, Window win) {
-		super(visibleName, server, win);
+	public Channel(String visibleName, Server server, Window win, String id) {
+		super(visibleName, server, win, id);
 	}
 	
 	public Group<Nick> getNicks() {

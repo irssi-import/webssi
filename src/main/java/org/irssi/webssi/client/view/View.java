@@ -16,6 +16,7 @@ public class View {
 	private final DebugView debugView = new DebugView();
 	private final WinDeck wmv;
 	private final ItemTreeView itemTreeView;
+	private final WinTabBar winTabBar;
 	
 	private Controller controller;
 	
@@ -23,7 +24,7 @@ public class View {
 		wmv = new WinDeck(model.getWm());
 		wmv.setStylePrimaryName("winDeck");
 		
-		WinTabBar winTabBar = new WinTabBar(model.getWm());
+		winTabBar = new WinTabBar(model.getWm());
 		
 		itemTreeView = new ItemTreeView(model.getServers(), model.getWm());
 		
@@ -69,5 +70,6 @@ public class View {
 	public void setController(Controller controller) {
 		this.controller = controller;
 		itemTreeView.setController(controller);
+		winTabBar.setController(controller);
 	}
 }

@@ -47,9 +47,9 @@ class WindowItemSynchronizer extends Synchronizer<WindowItem, WindowItemEvent, W
 		Server server = serverLocator.getModelFrom(event.<ServerEvent>cast());
 		Window win = winLocator.getModelFrom(event);
 		if ("channel".equals(event.getItemType())) {
-			return new Channel(event.getVisibleName(), server, win);
+			return new Channel(event.getVisibleName(), server, win, getId(event));
 		} else {
-			return new WindowItem(event.getVisibleName(), server, win);
+			return new WindowItem(event.getVisibleName(), server, win, getId(event));
 		}
 	}
 
