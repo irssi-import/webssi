@@ -8,17 +8,13 @@ import com.google.gwt.core.client.JavaScriptObject;
  * Command executed when the user entered a line.
  */
 public class SendLineCommand extends Command {
-	private final Window win;
-	private final String line;
-
 	public SendLineCommand(Window win, String line) {
-		this.win = win;
-		this.line = line;
+		super(js(win == null ? null : win.getId(), line));
 	}
-
+	
 	@Override
-	public JavaScriptObject createJS() {
-		return js(win.getId(), line);
+	public void execute() {
+		// do nothing, we can't predict the result
 	}
 	
 	private static native JavaScriptObject js(String winId, String line) /*-{

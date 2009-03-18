@@ -1,5 +1,7 @@
 package org.irssi.webssi.client;
 
+import java.util.List;
+
 import org.irssi.webssi.client.command.Command;
 import org.irssi.webssi.client.events.EventHandler;
 
@@ -17,4 +19,9 @@ public interface Link {
 	 * It is the responsibility of the caller to assure that the handler's event class is appropriate for the given event type. 
 	 */
 	public void addEventHandler(String type, EventHandler<?> handler);
+	
+	/**
+	 * List of commands that we sent but haven't received confirmation for
+	 */
+	public List<Command> getPendingCommands();
 }

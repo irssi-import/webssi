@@ -121,6 +121,8 @@ sub send_response_now($) {
 		die "no connection to send response to";
 	}
 	
+	before_send_response();
+	
 	# get events
 	my $eventstring = pop_events_as_json($session);
 	
@@ -520,6 +522,28 @@ sub update_text {
 #	$ignore_printing--;
 #}
 
+my $last_entry;
+my $last_entry_pos;
+
+sub update_entry {
+	my $entry = Irssi::parse_special('$L');
+	my $entry_pos = Irssi::gui_input_get_pos();
+	return if (defined($last_entry) && $entry eq $last_entry && $last_entry_pos == $entry_pos);
+	add_event_all(ev('entry changed', {content => $entry, cursorPos => $entry_pos }));
+	$last_entry = $entry;
+	$last_entry_pos = $entry_pos;
+	#debug("entry: " . $entry);
+}
+
+Irssi::signal_add_last('gui key pressed', sub {
+	update_entry();
+	#debug("key:" . $_[0])
+});
+
+sub before_send_response() {
+	update_entry();
+}
+
 ########## COMMANDS ##########
 
 sub processCommands($$) {
@@ -531,11 +555,16 @@ sub processCommands($$) {
 		return;
 	}
 	
+	return unless (scalar(@$commands)); # return if there are no events
+	
 	foreach my $command (@$commands) {
 		if (ref $command ne 'HASH') {
 			debug("ERROR: $command isn't a hash");
 			return;
 		}
+		
+		# signal that we start processing the command
+		add_event($session, ev('command', {'id' => $command->{'id'}}));
 
 		if ($command->{'type'} eq 'sendLine') {
 			my $win = id_to_window($command->{'win'});
@@ -547,8 +576,14 @@ sub processCommands($$) {
 		} elsif ($command->{type} eq 'activateWindowItem') {
 			my $item = id_to_item($command->{'item'});
 			cmd_activate_window_item($item);
+		} elsif ($command->{type} eq 'key') {
+			my $keys = $command->{'keys'};
+			cmd_key($keys);
 		}
 	}
+	
+	# not processing any command anymore
+	add_event($session, ev('command', {'id' => undef}));
 }
 
 sub cmd_send_line($$) {
@@ -569,6 +604,13 @@ sub cmd_activate_window($) {
 sub cmd_activate_window_item($) {
 	my ($item) = @_;
 	$item->set_active();
+}
+
+sub cmd_key($) {
+	my ($keys) = @_;
+	foreach my $key (@$keys) {
+		Irssi::signal_emit('gui key pressed', $key)
+	}
 }
 
 ########## DEBUG ##########

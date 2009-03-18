@@ -10,6 +10,7 @@ import com.google.gwt.core.client.EntryPoint;
  * Our main class, gwt Entry point.
  */
 public class Webssi implements EntryPoint {
+	private Synchronizers synchronizers;
 	private Controller controller;
 	private JsonLink link;
 	private Model model;
@@ -21,11 +22,11 @@ public class Webssi implements EntryPoint {
 		model = new Model();
 		JsonLink jsonLink = new JsonLink();
 		link = jsonLink;
-		Synchronizers.init(model, link);
+		synchronizers = new Synchronizers(model, link);
 		
 		View view = new View(model);
 
-		controller = new Controller(model, view, link);
+		controller = new Controller(model, view, link, synchronizers);
 		jsonLink.setListener(controller);
 	}
 

@@ -121,6 +121,7 @@ public final class ExpectedCall<T> {
 	 */
 	boolean called(T param) {
 		calledCount++;
+		assert calledCount <= expectCount || expectCount == -1;
 		calledParam = param;
 		boolean done = (calledCount == expectCount);
 		if (done)
@@ -131,6 +132,10 @@ public final class ExpectedCall<T> {
 		}
 		
 		return done;
+	}
+	
+	boolean removeWhenMatched() {
+		return calledCount == expectCount - 1;
 	}
 	
 	/**
@@ -190,6 +195,11 @@ public final class ExpectedCall<T> {
 	public ExpectedCall<T> zeroOrMoreTimes() {
 		optional = true;
 		expectCount = -1;
+		return this;
+	}
+	
+	public ExpectedCall<T> optional() {
+		optional = true;
 		return this;
 	}
 	

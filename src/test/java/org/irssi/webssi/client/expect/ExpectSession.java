@@ -47,17 +47,16 @@ public final class ExpectSession {
 				if (call.matches(param)) {
 					listener.called(expectable, param);
 					
-					boolean remove = call.called(param);
+					boolean remove = call.removeWhenMatched();
 					
 					if (remove) {
 						remove(call);
-//						list.remove(call);
-//						if (list.isEmpty()) {
-//							expecting.remove(expectable);
-//						}
 					}
+					listener.log("expecting-: " + expecting);
 					
-					listener.log("expecting: " + expecting);
+					call.called(param);
+					
+					listener.log("expecting+: " + expecting);
 					
 					if (expecting.size() == 0) {
 						listener.done();

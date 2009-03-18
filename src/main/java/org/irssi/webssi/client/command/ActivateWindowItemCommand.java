@@ -1,6 +1,8 @@
 package org.irssi.webssi.client.command;
 
+import org.irssi.webssi.client.events.WindowItemEvent;
 import org.irssi.webssi.client.model.WindowItem;
+import org.irssi.webssi.client.sync.ModelLocator;
 
 import com.google.gwt.core.client.JavaScriptObject;
 
@@ -8,17 +10,22 @@ import com.google.gwt.core.client.JavaScriptObject;
  * Makes the speficied item the active item in its window.
  * This command does not make that window the active one.
  */
-public class ActivateWindowItemCommand extends Command {
-
+public class ActivateWindowItemCommand extends SingleEchoCommand<WindowItem, WindowItemEvent> {
 	private final WindowItem item;
 	
-	public ActivateWindowItemCommand(WindowItem item) {
+	public ActivateWindowItemCommand(WindowItem item, ModelLocator<WindowItem, WindowItemEvent> modelLocator) {
+		super(js(item.getId()), "window item changed", modelLocator);
 		this.item = item;
 	}
-
+	
 	@Override
-	public JavaScriptObject createJS() {
-		return js(item.getId());
+	public void execute() {
+		item.getWin().setActiveItem(item);
+	}
+	
+	@Override
+	boolean echo(WindowItem item, WindowItemEvent event) {
+		return this.item == item;
 	}
 
 	private static native JavaScriptObject js(String itemId) /*-{

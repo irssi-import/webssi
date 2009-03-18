@@ -4,7 +4,8 @@ public class Model {
 	private final WindowManager wm = new WindowManager();
 	private final Group<Server> servers = new Group<Server>();
 	private final Group<WindowItem> noServerItems = new Group<WindowItem>();
-
+	private final Entry entry = new Entry();
+	
 	public WindowManager getWm() {
 		return wm;
 	}
@@ -18,6 +19,10 @@ public class Model {
 	 */
 	public Group<WindowItem> getNoServerWindowItems() {
 		return noServerItems;
+	}
+	
+	public Entry getEntry() {
+		return entry;
 	}
 	
 	

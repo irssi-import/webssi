@@ -9,7 +9,9 @@ import org.irssi.webssi.client.expect.Expectable;
 import org.irssi.webssi.client.expect.ExpectedCall;
 import org.irssi.webssi.client.expect.Reaction;
 import org.irssi.webssi.client.expect.Ref;
+import org.irssi.webssi.client.model.Entry;
 import org.irssi.webssi.client.model.Group;
+import org.irssi.webssi.client.model.TestEntryListener;
 import org.irssi.webssi.client.model.TestGroupListener;
 import org.irssi.webssi.client.model.TestWindowListener;
 import org.irssi.webssi.client.model.TestWindowManagerListener;
@@ -97,6 +99,11 @@ public abstract class AbstractExpectTest extends GWTTestCase {
 	protected final void listen(Window win) {
 		if (listening.add(win))
 			TestWindowListener.listen(expectSession, win);
+	}
+	
+	protected final void listen(Entry entry) {
+		if (listening.add(entry))
+			TestEntryListener.listen(expectSession, entry);
 	}
 	
 	private static final Expectable<Object> LATER = Expectable.declareExpectable("later");

@@ -4,6 +4,7 @@ import static org.irssi.webssi.client.model.TestGroupListener.WIN;
 import static org.irssi.webssi.client.model.TestWindowListener.WINDOW_ITEM_CHANGED;
 import static org.irssi.webssi.client.model.TestWindowListener.WINDOW_NAME_CHANGED;
 import static org.irssi.webssi.client.model.TestWindowManagerListener.WINDOW_CHANGED;
+import static org.irssi.webssi.client.model.TestEntryListener.CONTENT_CHANGED;
 
 import org.irssi.webssi.client.Webssi;
 import org.irssi.webssi.client.Link;
@@ -18,6 +19,8 @@ import org.irssi.webssi.client.model.Channel;
 import org.irssi.webssi.client.model.Model;
 import org.irssi.webssi.client.model.Window;
 import org.irssi.webssi.client.model.WindowItem;
+
+import com.google.gwt.user.client.ui.KeyboardListener;
 
 /**
  * Tests some scenarios.
@@ -194,7 +197,7 @@ public class WebssiTest extends AbstractExpectTest {
 	private ExpectedCall<?> closeWindow(Ref<Window> window) {
 		return expectSession.createRoot()
 		.react(sendCommandReaction(window, "/window close"))
-		.followedBy(WINDOW_CHANGED)
+		.followedBy(WINDOW_CHANGED).optional()
 		.followedBy(WIN.ITEM_MOVED).zeroOrMoreTimes()  // if windows_auto_renumber ON
 		.followedBy(WIN.ITEM_REMOVED);
 	}
@@ -228,6 +231,54 @@ public class WebssiTest extends AbstractExpectTest {
 				assertEquals(2, window2.value.getRefnum());
 			}
 		}).followedBy(closeWindow(window2))
+		;
+		
+		expectSession.start();
+	}
+	
+	private ExpectedCall<?> activateWindow(final Ref<Window> window) {
+		return expectSession.createRoot()
+		.react(new SimpleReaction() {
+			public void run() {
+				listen(model.getWm());
+				webssi.getController().activateWindow(window.value);
+			}
+		}).followedBy(WINDOW_CHANGED).withParamRef(window);
+	}
+	
+	public void testActivateWindow() {
+		delayTestFinish();
+		final Ref<Window> window2 = newRef();
+		final Ref<Window> window3 = newRef();
+		
+		expectSession.beginning()
+		.followedBy(init())
+		.followedBy(createNamedWindow("window2", window2))
+		.followedBy(createNamedWindow("window3", window3))
+		.followedBy(activateWindow(window2))
+		.followedBy(closeWindow(window3))
+		.followedBy(closeWindow(window2))
+		;
+		
+		expectSession.start();
+	}
+	
+	public void testEntry() {
+		delayTestFinish();
+		expectSession.beginning()
+		.followedBy(init())
+		.react(new SimpleReaction() {
+			public void run() {
+				listen(model.getEntry());
+				webssi.getController().keyPressed('A', 'a', 0);
+				webssi.getController().keyPressed('B', 'b', 0);
+				webssi.getController().keyPressed('C', 'c', 0);
+				webssi.getController().keyPressed((char)KeyboardListener.KEY_ENTER, '\0', 0);
+			}
+		}).followedBy(CONTENT_CHANGED).withParam("a")
+		.followedBy(CONTENT_CHANGED).withParam("ab")
+		.followedBy(CONTENT_CHANGED).withParam("abc")
+		.followedBy(CONTENT_CHANGED).withParam("")
 		;
 		
 		expectSession.start();
