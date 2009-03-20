@@ -185,9 +185,35 @@ sub add_event_all($) {
 # return the pending events for the given session encoded as json, and clear the list
 sub pop_events_as_json($) {
 	my ($session) = @_;
-	my $jsonstring = encode_json($session->{events});
+	convert_utf8($session->{events});
+	my $jsonstring = new JSON->ascii->encode($session->{events});
 	$session->{events} = [];
 	return $jsonstring;
+}
+
+# this is an ugly hack
+# calls utf8::decode on all strings in the given data structure of arrays and hashes 
+sub convert_utf8 {
+	my ($o) = @_;
+	if (ref($o) eq 'ARRAY') {
+		for (my $i; $i < scalar(@$o); $i++) {
+			my $v = $o->[$i];
+			if (ref($v)) {
+				convert_utf8($o->[$i]);
+			} elsif ($v !~ /^\d*$/) { # don't touch numbers
+				utf8::decode($o->[$i]);
+			}
+		}
+	} elsif (ref($o) eq 'HASH') {
+		foreach my $key (keys(%$o)) {
+			my $v = $o->{$key};
+			if (ref($v)) {
+				convert_utf8($o->{$key});
+			} elsif ($v !~ /^\d*$/) { # don't touch numbers
+				utf8::decode($o->{$key});
+			}
+		}
+	}
 }
 
 ########## CREATE EVENTS ##########
