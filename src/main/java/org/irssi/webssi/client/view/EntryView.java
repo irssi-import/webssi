@@ -6,6 +6,7 @@ import org.irssi.webssi.client.model.Model;
 
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.DeferredCommand;
+import com.google.gwt.user.client.Element;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.KeyboardListener;
 import com.google.gwt.user.client.ui.TextBox;
@@ -32,6 +33,9 @@ public class EntryView extends Composite implements Entry.Listener {
 		entry.addListener(this);
 		textBox = new TextBox();
 		initWidget(textBox);
+		
+		blockDefaultTab(textBox.getElement());
+		
 		textBox.addKeyboardListener(new KeyboardListener() {
 			public void onKeyDown(Widget sender, char keyCode, int modifiers) {
 				logKey("down", keyCode, modifiers);
@@ -82,5 +86,28 @@ public class EntryView extends Composite implements Entry.Listener {
 		textBox.setText(entry.getContent());
 		textBox.setCursorPos(entry.getCursorPos());
 	}
+	
+	/**
+	 * Blocks default behaviour of tab key, so it doesn't interfere with tab completion.
+	 * Based on http://stackoverflow.com/questions/3362/capturing-tab-key-in-text-box
+	 * @param myInput the textBox element.
+	 */
+	private static native void blockDefaultTab(Element myInput) /*-{
+		var keyHandler = function(e) {
+			var TABKEY = 9;
+			if(e.keyCode == TABKEY) {
+				if(e.preventDefault) {
+					e.preventDefault();
+				}
+				return false;
+			}
+		};
+		
+		if (myInput.addEventListener) {
+			myInput.addEventListener('keydown', keyHandler, false);
+		} else if(el.attachEvent ) {
+			myInput.attachEvent('onkeydown', keyHandler); // IE hack
+		}
+	}-*/;
 	
 }

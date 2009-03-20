@@ -74,6 +74,8 @@ public class KeyCommand extends Command {
 			keys.push(27, 91, 54, 126);
 		} else if (keyCode == KeyboardListener.KEY_ESCAPE) {
 			keys.push(27);
+		} else if (keyCode == KeyboardListener.KEY_TAB) {
+			keys.push(9);
 		} else if (keyChar != 0) {
 			keys.push(keyChar);
 			entry.setBeforeCursor(entry.getBeforeCursor() + keyChar);
