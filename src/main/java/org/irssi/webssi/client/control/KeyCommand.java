@@ -1,4 +1,4 @@
-package org.irssi.webssi.client.command;
+package org.irssi.webssi.client.control;
 
 import org.irssi.webssi.client.events.EntryChangedEvent;
 import org.irssi.webssi.client.events.JsonEvent;
@@ -10,17 +10,22 @@ import com.google.gwt.user.client.ui.KeyboardListener;
 /**
  * Command executed when the user presses a key.
  */
-public class KeyCommand extends Command {
+class KeyCommand extends Command {
 	private final Entry entry;
 	private final char keyCode;
 	private final char keyChar;
 	private final int modifiers;
 	
+	/**
+	 * Predicted entry after the command has been executed.
+	 * This might not be right, but we'll correct it when we receive the response from irssi.
+	 */
 	private String predictedEntryContent;
 	private int predictedEntryPos;
+	
 	private JavaScriptObject js;
 	
-	public KeyCommand(Entry entry, char keyCode, char keyChar, int modifiers) {
+	KeyCommand(Entry entry, char keyCode, char keyChar, int modifiers) {
 		super();
 		this.entry = entry;
 		this.keyCode = keyCode;
@@ -28,7 +33,7 @@ public class KeyCommand extends Command {
 		this.modifiers = modifiers;
 	}
 	
-	public void execute() {
+	void execute() {
 		IntArray keys = IntArray.create();
 		
 		if ((modifiers & KeyboardListener.MODIFIER_ALT) != 0)
@@ -88,7 +93,7 @@ public class KeyCommand extends Command {
 	}
 	
 	@Override
-	public boolean echo(JsonEvent event) {
+	boolean echo(JsonEvent event) {
 		if (! event.getType().equals("entry changed"))
 			return false;
 		
@@ -103,12 +108,12 @@ public class KeyCommand extends Command {
 		}
 	}
 	
-	public boolean needReplayAfter(JsonEvent event) {
+	boolean needReplayAfter(JsonEvent event) {
 		return event.getType().equals("entry changed");
 	}
 	
 	@Override
-	public JavaScriptObject getJS() {
+	JavaScriptObject getJS() {
 		if (js == null)
 			throw new IllegalStateException("Can't get JS before executing");
 		return js;
@@ -136,7 +141,7 @@ public class KeyCommand extends Command {
 	}-*/;
 	
 	@Override
-	public boolean needReplayAfterMissingEcho(Command missingEchoCommand) {
+	boolean needReplayAfterMissingEcho(Command missingEchoCommand) {
 		return missingEchoCommand instanceof KeyCommand;
 	}
 }

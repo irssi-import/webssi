@@ -1,4 +1,4 @@
-package org.irssi.webssi.client.command;
+package org.irssi.webssi.client.control;
 
 import org.irssi.webssi.client.events.JsonEvent;
 import org.irssi.webssi.client.sync.ModelLocator;
@@ -24,7 +24,7 @@ abstract class SingleEchoCommand<T, E extends JsonEvent> extends Command {
 	}
 	
 	@Override
-	public final boolean echo(JsonEvent event) {
+	final boolean echo(JsonEvent event) {
 		if (! echoEventType.equals(event.getType()))
 			return false;
 		E castedEvent = event.<E>cast();
@@ -35,12 +35,12 @@ abstract class SingleEchoCommand<T, E extends JsonEvent> extends Command {
 	abstract boolean echo(T item, E event);
 	
 	@Override
-	public boolean needReplayAfter(JsonEvent event) {
+	boolean needReplayAfter(JsonEvent event) {
 		return (event.getType().equals(echoEventType));
 	}
 	
 	@Override
-	public boolean needReplayAfterMissingEcho(Command missingEchoCommand) {
+	boolean needReplayAfterMissingEcho(Command missingEchoCommand) {
 		return missingEchoCommand.getClass() == this.getClass();
 	}
 }

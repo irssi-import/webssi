@@ -1,6 +1,6 @@
 package org.irssi.webssi.client.view;
 
-import org.irssi.webssi.client.Controller;
+import org.irssi.webssi.client.control.Controller;
 import org.irssi.webssi.client.model.Group;
 import org.irssi.webssi.client.model.Window;
 import org.irssi.webssi.client.model.WindowItem;

@@ -1,5 +1,7 @@
 package org.irssi.webssi.client;
 
+import org.irssi.webssi.client.control.Commander;
+import org.irssi.webssi.client.control.Controller;
 import org.irssi.webssi.client.model.Model;
 import org.irssi.webssi.client.sync.Synchronizers;
 import org.irssi.webssi.client.view.View;
@@ -26,8 +28,10 @@ public class Webssi implements EntryPoint {
 		
 		View view = new View(model);
 
-		controller = new Controller(model, view, link, synchronizers);
-		jsonLink.setListener(controller);
+		Commander commander = new Commander(link);
+		link.setCommander(commander);
+		controller = new Controller(model, view, commander, synchronizers);
+		jsonLink.setCommander(commander);
 	}
 
 	public Link getLink() {

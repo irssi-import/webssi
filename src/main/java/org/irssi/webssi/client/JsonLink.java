@@ -2,18 +2,14 @@ package org.irssi.webssi.client;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 
-import org.irssi.webssi.client.command.Command;
-import org.irssi.webssi.client.events.CommandEvent;
+import org.irssi.webssi.client.control.Commander;
 import org.irssi.webssi.client.events.CompositeEventHandler;
 import org.irssi.webssi.client.events.EventHandler;
 import org.irssi.webssi.client.events.InitEvent;
 import org.irssi.webssi.client.events.JsonEvent;
 
-import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.core.client.JsArray;
 import com.google.gwt.http.client.Request;
 import com.google.gwt.http.client.RequestBuilder;
@@ -21,8 +17,6 @@ import com.google.gwt.http.client.RequestCallback;
 import com.google.gwt.http.client.RequestException;
 import com.google.gwt.http.client.RequestTimeoutException;
 import com.google.gwt.http.client.Response;
-import com.google.gwt.json.client.JSONArray;
-import com.google.gwt.json.client.JSONObject;
 import com.google.gwt.user.client.DeferredCommand;
 import com.google.gwt.user.client.Timer;
 
@@ -37,22 +31,12 @@ class JsonLink implements Link {
 	 */
 	private HashMap<String, EventHandler<?>> eventHandlers = new HashMap<String, EventHandler<?>>();
 
-	private Controller listener;
+	private Commander commander;
 	
 	/**
 	 * sessionId, replaced with the real sessionId with the first sync (init event).
 	 */
 	private String sessionId = "newSession";
-	
-	/**
-	 * List of commands that we sent but haven't received confirmation for
-	 */
-	private final List<Command> pendingCommands = new LinkedList<Command>();
-	
-	/**
-	 * Queue of outgoing commands to be sent with the next sync
-	 */
-	private JSONArray commandQueue = new JSONArray();
 	
 	/**
 	 * Number of sync requests running
@@ -92,11 +76,11 @@ class JsonLink implements Link {
 			}
 		});
 		
-		sync();
+		scheduleSyncFast();
 	}
 	
-	void setListener(Controller listener) {
-		this.listener = listener;
+	void setCommander(Commander commander) {
+		this.commander = commander;
 	}
 	
 	public void addEventHandler(String type, EventHandler<?> handler) {
@@ -167,15 +151,14 @@ class JsonLink implements Link {
 		debug("syncing...");
 		
 		RequestBuilder builder = new RequestBuilder(RequestBuilder.POST, "/events.json");
-		String data = sessionId + ' ' + commandQueue.toString();
+		String data = sessionId + ' ' + commander.popCommands();
 		debug("sending: " + data);
-		commandQueue = new JSONArray();
 		try {
 			// Request request =
 			builder.sendRequest(data, new JsonRequestCallback());
 			
 		} catch (RequestException e) {
-			listener.debugMessage("RequestException", e.getMessage());
+			debug("RequestException " + e.getMessage());
 		}
 	}
 	
@@ -197,10 +180,10 @@ class JsonLink implements Link {
 		public void onError(Request request, Throwable exception) {
 			syncsRunning--;
 			if (exception instanceof RequestTimeoutException) {
-				listener.debugMessage("error", "timeout");
+				debug("timeout");
 				scheduleSync();
 			} else {
-				listener.debugMessage("fatal", exception.toString());
+				debug("http error: " + exception.toString());
 			}
 		}
 
@@ -214,7 +197,7 @@ class JsonLink implements Link {
 				processEvents(response.getText());
 				scheduleSync();
 			} else {
-				listener.debugMessage("response", response.getStatusCode() + " "
+				debug("response: " + response.getStatusCode() + " "
 						+ response.getStatusText());
 			}
 		}
@@ -224,42 +207,20 @@ class JsonLink implements Link {
 	 * Handle response: parse and call the appropriate event handlers
 	 */
 	private void processEvents(String json) {
-		Command processingCommand = null;
-//		try {
-			// list of events being processed.
-			// While processing events that are echo are removed from this list 
-			List<JsonEvent> events = eventsFromJson(json);
-			
-			for (Iterator<JsonEvent> it = events.iterator(); it.hasNext();) {
-				JsonEvent event = it.next();
-				if ("command".equals(event.getType())) {
-					Integer commandId = event.<CommandEvent>cast().getCommandId();
-					if (commandId == -1) {
-						processingCommand = null;
-					} else {
-						processingCommand = pendingCommands.remove(0);
-						assert event.<CommandEvent>cast().getCommandId() == getCommandId(processingCommand);
-					}
+		for (JsonEvent event : eventsFromJson(json)) {
+			boolean shouldIgnore = commander.preProcessEvent(event);
+			if (shouldIgnore) {
+				debug("ignoring echo for " + event.getType());
+			} else {
+				EventHandler<?> handler = eventHandlers.get(event.getType());
+				if (handler != null) {
+					callHandler(handler, event);
 				} else {
-					EventHandler<?> handler = eventHandlers.get(event.getType());
-					if (processingCommand != null && processingCommand.echo(event)) {
-						it.remove(); // remove this event, because echo event should not cause replay
-						listener.debugMessage("ignoring echo", event.getType());
-					} else if (handler != null) {
-						callHandler(handler, event);
-					} else {
-						listener.debugMessage("unknown event", event.getType());
-					}
+					debug("unknown event: " + event.getType());
 				}
 			}
-			listener.eventsProcessed(events);
-//		} catch (Throwable e) {
-//			listener.debugMessage("error", e.toString());
-//		}
-	}
-	
-	public List<Command> getPendingCommands() {
-		return pendingCommands;
+		}
+		commander.postProcessEvents();
 	}
 
 	/**
@@ -288,30 +249,6 @@ class JsonLink implements Link {
 		debug("Handling " + event.getType());
 		handler.handle(event.<T>cast());
 	}
-	
-	/**
-	 * Add the given command to the queue, and schedule a sync really soon 
-	 */
-	public void sendCommand(Command command) {
-		JavaScriptObject js = command.getJS();
-		pendingCommands.add(command);
-		addCommandId(js, getCommandId(command));
-		commandQueue.set(commandQueue.size(), new JSONObject(js));
-		scheduleSyncFast();
-	}
-	
-	/**
-	 * We don't really need an id for commands, just used to double-check
-	 * if we receive command replies in the same order we sent them.
-	 */
-	private int getCommandId(Command command) {
-		int hashCode = command.hashCode();
-		return hashCode == -1 ? 1 : hashCode; // avoid -1 as id, it means no command
-	}
-	
-	private static native void addCommandId(JavaScriptObject command, int id) /*-{
-		command['id'] = id;
-	}-*/; 
 	
 	private void debug(String text) {
 		System.err.println(text);

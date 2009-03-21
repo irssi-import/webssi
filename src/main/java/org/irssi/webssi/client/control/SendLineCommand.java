@@ -1,4 +1,4 @@
-package org.irssi.webssi.client.command;
+package org.irssi.webssi.client.control;
 
 import org.irssi.webssi.client.model.Window;
 
@@ -7,13 +7,13 @@ import com.google.gwt.core.client.JavaScriptObject;
 /**
  * Command executed when the user entered a line.
  */
-public class SendLineCommand extends Command {
-	public SendLineCommand(Window win, String line) {
+class SendLineCommand extends Command {
+	SendLineCommand(Window win, String line) {
 		super(js(win == null ? null : win.getId(), line));
 	}
 	
 	@Override
-	public void execute() {
+	void execute() {
 		// do nothing, we can't predict the result
 	}
 	

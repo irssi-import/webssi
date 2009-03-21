@@ -1,4 +1,4 @@
-package org.irssi.webssi.client.command;
+package org.irssi.webssi.client.control;
 
 import org.irssi.webssi.client.events.WindowEvent;
 import org.irssi.webssi.client.model.Window;
@@ -10,23 +10,23 @@ import com.google.gwt.core.client.JavaScriptObject;
 /**
  * Makes the specified window the active window.
  */
-public class ActivateWindowCommand extends SingleEchoCommand<Window, WindowEvent> {
+class ActivateWindowCommand extends SingleEchoCommand<Window, WindowEvent> {
 	private final WindowManager wm;
 	private final Window win;
 	
-	public ActivateWindowCommand(WindowManager wm, Window win, ModelLocator<Window, WindowEvent> modelLocator) {
+	ActivateWindowCommand(WindowManager wm, Window win, ModelLocator<Window, WindowEvent> modelLocator) {
 		super(js(win.getId()), "window changed", modelLocator);
 		this.wm = wm;
 		this.win = win;
 	}
 	
 	@Override
-	public void execute() {
+	void execute() {
 		wm.setActiveWindow(win);
 	}
 	
 	@Override
-	public boolean echo(Window window, WindowEvent event) {
+	boolean echo(Window window, WindowEvent event) {
 		return window == win;
 	}
 
