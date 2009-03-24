@@ -16,23 +16,25 @@ public class Webssi implements EntryPoint {
 	private Controller controller;
 	private JsonLink link;
 	private Model model;
+	private Commander commander;
 	
 	/**
 	 * This is the entry point method.
 	 */
 	public void onModuleLoad() {
 		model = new Model();
-		JsonLink jsonLink = new JsonLink();
+		JsonLink jsonLink = createLink();
 		link = jsonLink;
 		synchronizers = new Synchronizers(model, link);
 		
 		View view = new View(model);
 
-		Commander commander = new Commander(link);
+		commander = new Commander(link);
 		link.setCommander(commander);
 		controller = new Controller(model, view, commander, synchronizers);
 		jsonLink.setCommander(commander);
 	}
+	
 
 	public Link getLink() {
 		return link;
@@ -51,5 +53,13 @@ public class Webssi implements EntryPoint {
 	 */
 	void shutdown() {
 		link.shutdown();
+	}
+	
+	JsonLink createLink() {
+		return new JsonLink();
+	}
+	
+	Commander getCommander() {
+		return commander;
 	}
 }

@@ -99,18 +99,18 @@ public class Commander {
 		this.link = link;
 		link.addEventHandler("command", new EventHandler<CommandEvent>(){
 			public void handle(CommandEvent event) {
+				// if the predictable's value was not changed when the previous command ran
+				// in other words, if we missed an echo
+				if (processingCommand != null && !processingCommandPredictableWasAffected) {
+					Predictable predictable = processingCommand.getPredictable();
+					// if this prediction didn't already fail
+					if (predictable != null && isOk(predictable)) {
+						// remember that this command was the first one missing an echo
+						predictions.put(predictable, PredictionState.missed(processingCommand));
+					}
+				}
 				Integer commandId = event.getCommandId();
 				if (commandId == -1) {
-					// if the predictable's value was not changed when the previous command ran
-					// in other words, if we missed an echo
-					if (processingCommand != null && !processingCommandPredictableWasAffected) {
-						Predictable predictable = processingCommand.getPredictable();
-						// if this prediction didn't already fail
-						if (predictable != null && isOk(predictable)) {
-							// remember that this command was the first one missing an echo
-							predictions.put(predictable, PredictionState.missed(processingCommand));
-						}
-					}
 					processingCommand = null;
 				} else {
 					processingCommand = pendingCommands.remove(0);
@@ -145,7 +145,7 @@ public class Commander {
 	 * We don't really need an id for commands yes, just used to double-check
 	 * if we receive command replies in the same order we sent them.
 	 */
-	private int getCommandId(Command command) {
+	int getCommandId(Command command) {
 		int hashCode = command.hashCode();
 		return hashCode == -1 ? 1 : hashCode; // avoid -1 as id, it means no command
 	}
@@ -225,5 +225,12 @@ public class Commander {
 		for (Command pendingCommand : pendingCommands) {
 			predictions.put(pendingCommand.getPredictable(), PredictionState.OK);
 		}
+	}
+	
+	/**
+	 * For tests only.
+	 */
+	List<Command> getPendingCommands() {
+		return pendingCommands;
 	}
 }

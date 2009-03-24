@@ -206,7 +206,7 @@ class JsonLink implements Link {
 	/**
 	 * Handle response: parse and call the appropriate event handlers
 	 */
-	private void processEvents(String json) {
+	void processEvents(String json) {
 		for (JsonEvent event : eventsFromJson(json)) {
 			boolean shouldIgnore = commander.preProcessEvent(event);
 			if (shouldIgnore) {

@@ -6,10 +6,6 @@ import org.irssi.webssi.client.events.EventHandler;
  * Handles communication to irssi.
  */
 public interface Link {
-//	/**
-//	 * Add the given command to the command queue, and schedule a sync.
-//	 */
-	//public void sendCommand(Command command);
 	/**
 	 * Schedule a sync really soon, but not immediately
 	 */
@@ -20,9 +16,4 @@ public interface Link {
 	 * It is the responsibility of the caller to assure that the handler's event class is appropriate for the given event type. 
 	 */
 	public void addEventHandler(String type, EventHandler<?> handler);
-	
-//	/**
-//	 * List of commands that we sent but haven't received confirmation for
-//	 */
-//	public List<Command> getPendingCommands();
 }
