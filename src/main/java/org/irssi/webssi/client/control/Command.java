@@ -5,9 +5,39 @@ import org.irssi.webssi.client.events.JsonEvent;
 import com.google.gwt.core.client.JavaScriptObject;
 
 /**
- * Commmand sent from client to irssi.
+ * Command sent from client to irssi.
  */
 abstract class Command {
+	/**
+	 * A property on a model object whose value is predicted by a command.
+	 * Default implementation identifies the property by the type of event that affects it,
+	 * and assumes all such events affect it.
+	 */
+	static class Predictable {
+		private final String echoEventType;
+		
+		public Predictable(String echoEventType) {
+			this.echoEventType = echoEventType;
+		}
+
+		/**
+		 * Returns true if the given event changes the value of the predicted property.
+		 */
+		public boolean affectedBy(JsonEvent event) {
+			return echoEventType.equals(event.getType());
+		}
+		
+		@Override
+		public int hashCode() {
+			return echoEventType.hashCode();
+		}
+		
+		@Override
+		public boolean equals(Object obj) {
+			return (obj instanceof Predictable) && ((Predictable)obj).echoEventType.equals(echoEventType);
+		}
+	};
+	
 	private final JavaScriptObject js;
 	
 	Command() {
@@ -31,28 +61,26 @@ abstract class Command {
 	abstract void execute();
 	
 	/**
-	 * Called when an event is sent while irssi processes this command.
-	 * Returns true if the event is an echo; if it the normal event handlers should not be called. 
+	 * Called when an event that affect the prediction is sent while irssi processes this command.
+	 * Returns true if the event matches what we predicted.
+	 * (In that case, normal event handlers will not be called.) 
 	 */
-	boolean echo(JsonEvent event) {
+	boolean echoMatches(JsonEvent event) {
 		return false;
 	}
 	
 	/**
-	 * Checked after processing of all events, when the given event is received, and was not predicted as echo,
-	 * and this command is still pending.
-	 * If this returns true, this command will be executed again.
+	 * The property this command predicts, or null if it doesn't predict anything.
 	 */
-	boolean needReplayAfter(JsonEvent event) {
-		return false;
+	Predictable getPredictable() {
+		return null;
 	}
-	
+
 	/**
-	 * Checked after processing of all events, when the given command has been processed but produced no echo,
-	 * and this command is still pending.
-	 * If this returns true, this command will be executed again.
+	 * Reverts the state of the model like it was before this command was last executed.
+	 * Must be implemented by commands that return a non-null predictable.
 	 */
-	boolean needReplayAfterMissingEcho(Command missingEchoCommand) {
-		return false;
+	void undo() {
+		assert false; // should never be called for commands that don't override it 
 	}
 }

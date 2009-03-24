@@ -11,10 +11,15 @@ import com.google.gwt.user.client.ui.KeyboardListener;
  * Command executed when the user presses a key.
  */
 class KeyCommand extends Command {
+	private static Predictable ENTRY_PREDICTABLE = new Predictable("entry changed");
+	
 	private final Entry entry;
 	private final char keyCode;
 	private final char keyChar;
 	private final int modifiers;
+	
+	private String origEntryContent;
+	private int origEntryPos;
 	
 	/**
 	 * Predicted entry after the command has been executed.
@@ -33,7 +38,11 @@ class KeyCommand extends Command {
 		this.modifiers = modifiers;
 	}
 	
+	@Override
 	void execute() {
+		origEntryContent = entry.getContent();
+		origEntryPos = entry.getCursorPos();
+		
 		IntArray keys = IntArray.create();
 		
 		if ((modifiers & KeyboardListener.MODIFIER_ALT) != 0)
@@ -93,10 +102,12 @@ class KeyCommand extends Command {
 	}
 	
 	@Override
-	boolean echo(JsonEvent event) {
-		if (! event.getType().equals("entry changed"))
-			return false;
-		
+	Predictable getPredictable() {
+		return ENTRY_PREDICTABLE;
+	}
+	
+	@Override
+	boolean echoMatches(JsonEvent event) {
 		EntryChangedEvent entryEvent = event.<EntryChangedEvent>cast();
 		
 		// if the entry is as expected
@@ -108,8 +119,9 @@ class KeyCommand extends Command {
 		}
 	}
 	
-	boolean needReplayAfter(JsonEvent event) {
-		return event.getType().equals("entry changed");
+	@Override
+	void undo() {
+		entry.setContent(origEntryContent, origEntryPos);
 	}
 	
 	@Override
@@ -139,9 +151,4 @@ class KeyCommand extends Command {
 	private static native JavaScriptObject js(IntArray keys) /*-{
 		return { "type": "key", "keys" : keys };
 	}-*/;
-	
-	@Override
-	boolean needReplayAfterMissingEcho(Command missingEchoCommand) {
-		return missingEchoCommand instanceof KeyCommand;
-	}
 }
