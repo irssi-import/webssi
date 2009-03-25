@@ -39,6 +39,7 @@ abstract class Command {
 	};
 	
 	private final JavaScriptObject js;
+	private int id;
 	
 	Command() {
 		this(null);
@@ -82,5 +83,16 @@ abstract class Command {
 	 */
 	void undo() {
 		assert false; // should never be called for commands that don't override it 
+	}
+
+	/**
+	 * Returns the id of this command. Command id's are ascending in the order that they were executed.
+	 */
+	int getId() {
+		return id;
+	}
+
+	void setId(int id) {
+		this.id = id;
 	}
 }

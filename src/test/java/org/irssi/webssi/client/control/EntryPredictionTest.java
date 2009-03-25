@@ -12,6 +12,7 @@ import com.google.gwt.junit.client.GWTTestCase;
  */
 public class EntryPredictionTest extends GWTTestCase {
 	private TestWebssi webssi;
+	private int eventIdCounter = 1;
 	
 	@Override
 	protected void gwtSetUp() throws Exception {
@@ -193,17 +194,16 @@ public class EntryPredictionTest extends GWTTestCase {
 	}
 	
 	private String commandEvent(Command command) {
-		return "{\"type\":\"command\",\"id\":" + (command == null ? -1 : webssi.getCommander().getCommandId(command)) + "}";
+		return "{\"type\":\"command\",\"id\":" + (command == null ? -1 : command.getId()) + ",\"i\": " + (eventIdCounter++) + "}";
 	}
 	
 	private String entryChangedEvent(String content, int cursorPos) {
-		return "{\"type\":\"entry changed\", \"content\":\""+ content + "\",\"cursorPos\":"+cursorPos + "}";
+		return "{\"type\":\"entry changed\", \"content\":\""+ content + "\",\"cursorPos\":"+cursorPos + ",\"i\": " + (eventIdCounter++) + "}";
 	}
 	
 	private List<Command> popCommands(int expectedPendingCommandCount) {
 		List<Command> commands = webssi.getCommander().getPendingCommands();
 		assertEquals(expectedPendingCommandCount, commands.size());
-		webssi.getCommander().popCommands();
 		return commands;
 	}
 	

@@ -12,4 +12,9 @@ public class JsonEvent extends JavaScriptObject {
 	 * Name of the event. For example "window new".
 	 */
 	public final native String getType() /*-{ return this.type; }-*/;
+	
+	/**
+	 * Id for this event. Event ids are ascending in the order that they are sent.
+	 */
+	public final native int getEventId() /*-{ return this.i; }-*/;
 }

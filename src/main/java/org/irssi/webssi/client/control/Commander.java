@@ -20,7 +20,6 @@ import com.google.gwt.json.client.JSONObject;
  * Manages the list of pending commands, and deals with echo and replaying.
  */
 public class Commander {
-	
 	/**
 	 * State of a prediction
 	 */
@@ -71,11 +70,6 @@ public class Commander {
 	private final List<Command> pendingCommands = new LinkedList<Command>();
 
 	/**
-	 * Queue of outgoing commands to be sent with the next sync
-	 */
-	private JSONArray commandQueue = new JSONArray();
-	
-	/**
 	 * The command who's response is being processed.
 	 */
 	private Command processingCommand;
@@ -94,6 +88,11 @@ public class Commander {
 	 * * if no echo was received at all, the first command being processed that affects this property (and missed the echo)
 	 */
 	private final Map<Predictable, PredictionState> predictions = new HashMap<Predictable, PredictionState>();
+	
+	/**
+	 * Id for the next executed command.
+	 */
+	private int commandIdCounter = 1;
 	
 	public Commander(Link link) {
 		this.link = link;
@@ -114,7 +113,7 @@ public class Commander {
 					processingCommand = null;
 				} else {
 					processingCommand = pendingCommands.remove(0);
-					assert event.getCommandId() == getCommandId(processingCommand);
+					assert event.getCommandId() == processingCommand.getId();
 					processingCommandPredictableWasAffected = false;
 				}
 			}
@@ -130,24 +129,14 @@ public class Commander {
 	 * Execute the given command, add it to the queue to send to irssi, and schedule a sync really soon 
 	 */
 	void execute(Command command) {
-		command.execute();
-		JavaScriptObject js = command.getJS();
 		pendingCommands.add(command);
-		if (! predictions.containsKey(command.getPredictable())) {
-			predictions.put(command.getPredictable(), PredictionState.OK);
+		command.setId(commandIdCounter++);
+		command.execute();
+		Predictable predictable = command.getPredictable();
+		if (predictable != null && ! predictions.containsKey(predictable)) {
+			predictions.put(predictable, PredictionState.OK);
 		}
-		addCommandId(js, getCommandId(command));
-		commandQueue.set(commandQueue.size(), new JSONObject(js));
 		link.scheduleSyncFast();
-	}
-	
-	/**
-	 * We don't really need an id for commands yes, just used to double-check
-	 * if we receive command replies in the same order we sent them.
-	 */
-	int getCommandId(Command command) {
-		int hashCode = command.hashCode();
-		return hashCode == -1 ? 1 : hashCode; // avoid -1 as id, it means no command
 	}
 	
 	private static native void addCommandId(JavaScriptObject command, int id) /*-{
@@ -155,13 +144,17 @@ public class Commander {
 	}-*/;
 	
 	/**
-	 * Returns the queue of commands converted in a String containing JSON to be sent to irssi,
-	 * and empties the queue.
+	 * Returns the queue of pending commands converted in a String containing JSON to be sent to irssi.
 	 */
-	public String popCommands() {
-		String result = commandQueue.toString();
-		commandQueue = new JSONArray();
-		return result;
+	public String getPendingCommandsAsJson() {
+		JSONArray commands = new JSONArray();
+		for (Command command : pendingCommands) {
+			JavaScriptObject js = command.getJS();
+			addCommandId(js, command.getId());
+			commands.set(commands.size(), new JSONObject(js));
+		}
+		
+		return commands.toString();
 	}
 	
 	/**
@@ -214,7 +207,7 @@ public class Commander {
 		// for commands that are still pending whose old prediction was based on a predicted value
 		// that just turned out to be wrong, re-predict it.
 		for (Command pendingCommand : pendingCommands) {
-			if (! isOk(pendingCommand.getPredictable())) {
+			if (pendingCommand.getPredictable() != null && ! isOk(pendingCommand.getPredictable())) {
 				pendingCommand.execute();
 			}
 		}
@@ -223,7 +216,9 @@ public class Commander {
 		// drop old predictions and put all pending predictions in OK state.
 		predictions.clear();
 		for (Command pendingCommand : pendingCommands) {
-			predictions.put(pendingCommand.getPredictable(), PredictionState.OK);
+			Predictable predictable = pendingCommand.getPredictable();
+			if (predictable != null)
+				predictions.put(predictable, PredictionState.OK);
 		}
 	}
 	

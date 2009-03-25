@@ -58,7 +58,7 @@ sub handle_request($) {
 	if (! check_request_authorization($request)) {
 		send_authorization_required($client);
 	} elsif ($url eq '/events.json') {
-		my ($sessionid, $commands) = split / /, $request->content(), 2;
+		my ($sessionid, $events_ack, $commands) = split / /, $request->content(), 3;
 		
 		# session
 		my $session;
@@ -67,7 +67,7 @@ sub handle_request($) {
 		} else {
 			$session = $sessions{$sessionid};
 			if (!$session) {
-				my $response = HTTP::Response->new(200, undef, undef, "[{\"type\":\"unknown session\"}]");
+				my $response = HTTP::Response->new(200, undef, undef, "[{\"type\":\"unknown session\", \"i\": -1}]");
 				print_warn("unknown session $sessionid");
 				$client->send_response($response);
 				return;
@@ -77,12 +77,14 @@ sub handle_request($) {
 		if ($session->{pending_client}) {
 			debug("dropping older request");
 			my $client = $session->{pending_client};
-			my $response = HTTP::Response->new(200, undef, undef, "[{\"type\":\"request superseded\"}]");
+			my $response = HTTP::Response->new(200, undef, undef, "[{\"type\":\"request superseded\", \"i\": -1}]");
 			$client->send_response($response);
 			delete $session->{pending_client};
 		}
 		
 		$session->{pending_client} = $client;
+		
+		events_ack($session, $events_ack);
 		
 		# commands
 		processCommands($session, $commands);
@@ -124,7 +126,7 @@ sub send_response_now($) {
 	before_send_response();
 	
 	# get events
-	my $eventstring = pop_events_as_json($session);
+	my $eventstring = get_events_as_json($session);
 	
 	# send reply
 	my $response = HTTP::Response->new(200, undef, undef, $eventstring);
@@ -170,7 +172,10 @@ Irssi::settings_add_bool('webssi', 'webssi_authentication_disabled', 0);
 
 sub add_event($$) {
 	my ($session, $event) = @_;
-	push @{$session->{events}}, $event;
+	my %event_copy = %$event;
+	$session->{'last_event_id'} = defined($session->{'last_event_id'}) ? ($session->{'last_event_id'} + 1) : 1;
+	$event_copy{'i'} = $session->{'last_event_id'};
+	push @{$session->{events}}, \%event_copy;
 	send_response_later($session);
 }
 
@@ -182,13 +187,22 @@ sub add_event_all($) {
 	}
 }
 
-# return the pending events for the given session encoded as json, and clear the list
-sub pop_events_as_json($) {
+# return the pending events for the given session encoded as json
+sub get_events_as_json($) {
 	my ($session) = @_;
 	convert_utf8($session->{events});
 	my $jsonstring = new JSON->ascii->encode($session->{events});
-	$session->{events} = [];
 	return $jsonstring;
+}
+
+# remove events from the queue of the given session with ids smaller than or equal to $events_ack,
+# because they have been received by the client
+sub events_ack($$) {
+	my ($session, $events_ack) = @_;
+	my $events = $session->{events};
+	while (scalar(@$events) != 0 && $events->[0]->{'i'} <= $events_ack) {
+		shift @$events;
+	}
 }
 
 # this is an ugly hack
@@ -588,6 +602,12 @@ sub processCommands($$) {
 			debug("ERROR: $command isn't a hash");
 			return;
 		}
+		
+		if (defined($session->{'last_processed_command'}) && $command->{'id'} <= $session->{'last_processed_command'}) {
+			next;
+		}
+		
+		$session->{'last_processed_command'} = $command->{'id'};
 		
 		# signal that we start processing the command
 		add_event($session, ev('command', {'id' => $command->{'id'}}));

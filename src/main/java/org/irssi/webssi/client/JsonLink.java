@@ -53,6 +53,8 @@ class JsonLink implements Link {
 	 */
 	private boolean shutdown = false;
 	
+	private int lastEventReceivedId = 0;
+	
 	/**
 	 * Timer to schedule a sync
 	 */
@@ -151,7 +153,7 @@ class JsonLink implements Link {
 		debug("syncing...");
 		
 		RequestBuilder builder = new RequestBuilder(RequestBuilder.POST, "/events.json");
-		String data = sessionId + ' ' + commander.popCommands();
+		String data = sessionId + ' ' + lastEventReceivedId + ' ' + commander.getPendingCommandsAsJson();
 		debug("sending: " + data);
 		try {
 			// Request request =
@@ -208,6 +210,11 @@ class JsonLink implements Link {
 	 */
 	void processEvents(String json) {
 		for (JsonEvent event : eventsFromJson(json)) {
+			if (event.getEventId() <= lastEventReceivedId)
+				continue;
+			assert event.getEventId() == lastEventReceivedId + 1;
+			lastEventReceivedId = event.getEventId();
+			
 			boolean shouldIgnore = commander.preProcessEvent(event);
 			if (shouldIgnore) {
 				debug("ignoring echo for " + event.getType());
