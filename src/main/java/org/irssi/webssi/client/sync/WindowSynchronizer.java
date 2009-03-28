@@ -3,10 +3,12 @@ package org.irssi.webssi.client.sync;
 import org.irssi.webssi.client.Link;
 import org.irssi.webssi.client.events.EventHandler;
 import org.irssi.webssi.client.events.TextEvent;
+import org.irssi.webssi.client.events.WindowActivityEvent;
 import org.irssi.webssi.client.events.WindowCreatedEvent;
 import org.irssi.webssi.client.events.WindowEvent;
 import org.irssi.webssi.client.events.WindowNameChangedEvent;
 import org.irssi.webssi.client.events.WindowRefnumChangedEvent;
+import org.irssi.webssi.client.model.DataLevel;
 import org.irssi.webssi.client.model.Group;
 import org.irssi.webssi.client.model.Model;
 import org.irssi.webssi.client.model.Window;
@@ -38,12 +40,19 @@ class WindowSynchronizer extends Synchronizer<Window, WindowEvent, WindowCreated
 			public void handle(TextEvent event) {
 				getModelFrom(event).printText(event.getText());
 			}
-		});		
+		});
+		link.addEventHandler("window activity", new EventHandler<WindowActivityEvent>() {
+			public void handle(WindowActivityEvent event) {
+				getItem(event).getActivity().activity(DataLevel.fromInt(event.getDataLevel()), event.getHilightColor());
+			}
+		});
 	}
 	
 	@Override
 	protected Window createNew(WindowCreatedEvent event) {
-		return new Window(event.getWinId(), event.getName(), event.getRefnum());
+		Window result = new Window(event.getWinId(), event.getName(), event.getRefnum());
+		result.getActivity().activity(DataLevel.fromInt(event.getDataLevel()), event.getHilightColor());
+		return result;
 	}
 
 	@Override

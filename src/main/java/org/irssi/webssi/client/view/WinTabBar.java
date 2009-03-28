@@ -1,6 +1,7 @@
 package org.irssi.webssi.client.view;
 
 import org.irssi.webssi.client.control.Controller;
+import org.irssi.webssi.client.model.Activity;
 import org.irssi.webssi.client.model.Group;
 import org.irssi.webssi.client.model.Window;
 import org.irssi.webssi.client.model.WindowItem;
@@ -23,7 +24,7 @@ public class WinTabBar extends Composite implements WindowManager.Listener, Grou
 	/**
 	 * The content (title) of one tab
 	 */
-	private static class TabWidget extends Label implements Window.Listener {
+	private static class TabWidget extends Label implements Window.Listener, Activity.Listener {
 		private final Window window;
 
 		public TabWidget(Window window) {
@@ -31,11 +32,17 @@ public class WinTabBar extends Composite implements WindowManager.Listener, Grou
 			this.window = window;
 			setWordWrap(false);
 			refreshTitle();
+			refreshStyle();
 			window.addListener(this);
+			window.getActivity().addListener(this);
 		}
 		
 		private void refreshTitle() {
 			setText(window.getTitle());
+		}
+		
+		private void refreshStyle() {
+			this.setStyleName(ColorUtil.styleForActivity(window.getActivity()));
 		}
 		
 		public void nameChanged(String name) {
@@ -48,6 +55,10 @@ public class WinTabBar extends Composite implements WindowManager.Listener, Grou
 		
 		public void textPrinted(String text) {
 			// do nothing
+		}
+		
+		public void activity() {
+			refreshStyle();
 		}
 	}
 	

@@ -109,9 +109,9 @@ sub send_response_later($) {
 	if ($session->{response_scheduled} || ! $session->{pending_client} || scalar(@{$session->{events}}) == 0) {
 		return;
 	}
-	debug("send_response_later: " . scalar(@{$session->{events}}) . " events waiting");
 	$session->{response_scheduled} = 1;
 	Irssi::timeout_add_once(50, \&send_response_now, $session);
+	debug("send_response_later: " . scalar(@{$session->{events}}) . " events waiting");
 }
 
 sub send_response_now($) {
@@ -283,7 +283,9 @@ sub ev_window_item_new($$) {
 	my ($win, $item) = @_;
 	my $result = ev_window_item('window item new', $win, $item, {
 		visible_name => $item->{visible_name},
-		is_active => $item->is_active()
+		is_active => $item->is_active(),
+		data_level => $item->{data_level},
+		hilight_color => $item->{hilight_color}
 	});
 	if ($item->isa('Irssi::Channel')) {
 		$result->{'item_type'} = 'channel';
@@ -346,7 +348,9 @@ sub map_full_window($) {
 	return {
 		window => window_to_id($window),
 		name => $window->{'name'},
-		refnum => $window->{'refnum'}
+		refnum => $window->{'refnum'},
+		data_level => $window->{data_level},
+		hilight_color => $window->{hilight_color}
 	};
 }
 
@@ -463,6 +467,13 @@ Irssi::signal_add('window item changed', sub {
 	add_event_all(ev_window('window item changed', $window, {item => item_to_id($item)}));
 });
 
+Irssi::signal_add('window item activity', sub {
+	my ($item, $old_level) = @_;
+	if ($item->{data_level} != $old_level) {
+		add_event_all(ev_window_item('window item activity', $item->window(), $item, {data_level => $item->{data_level}, hilight_color => $item->{hilight_color}}));
+	}
+});
+
 Irssi::signal_add('nicklist new', sub {
 	my ($channel, $nick) = @_;
 	add_event_all(ev_nicklist_new($channel, $nick));
@@ -493,6 +504,13 @@ Irssi::signal_add('window refnum changed', sub {
 Irssi::signal_add('window name changed', sub {
 	my ($window, $old) = @_;
 	add_event_all(ev('window name changed', {'window' => window_to_id($window), 'name' => $window->{'name'}}));
+});
+
+Irssi::signal_add('window activity', sub {
+	my ($window, $old_level) = @_;
+	if ($window->{data_level} != $old_level) {
+		add_event_all(ev_window('window activity', $window, {data_level => $window->{data_level}, hilight_color => $window->{hilight_color}}));
+	}
 });
 
 Irssi::signal_add('server connected', sub {

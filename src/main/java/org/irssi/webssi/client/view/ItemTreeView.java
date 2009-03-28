@@ -1,6 +1,7 @@
 package org.irssi.webssi.client.view;
 
 import org.irssi.webssi.client.control.Controller;
+import org.irssi.webssi.client.model.Activity;
 import org.irssi.webssi.client.model.Group;
 import org.irssi.webssi.client.model.Server;
 import org.irssi.webssi.client.model.Window;
@@ -38,13 +39,30 @@ public class ItemTreeView extends GroupTreeView implements WindowManager.Listene
 	private class ItemLevel extends GroupTreeView.LeafLevel<WindowItem> {
 
 		public TreeItem getTreeItem(WindowItem item) {
-			TreeItem result = new TreeItem();
-			result.setText(item.getVisibleName());
-			return result;
+			return new ItemTreeItem(item);
 		}
 		
 		public void onTreeItemSelected(WindowItem item) {
 			controller.activateWindowItem(item);
+		}
+	}
+	
+	private class ItemTreeItem extends TreeItem implements Activity.Listener {
+		private final WindowItem wi;
+
+		private ItemTreeItem(WindowItem wi) {
+			this.wi = wi;
+			wi.getActivity().addListener(this);
+			setText(wi.getVisibleName());
+			refreshStyle();
+		}
+		
+		private void refreshStyle() {
+			this.setStyleName(ColorUtil.styleForActivity(wi.getActivity()));
+		}
+		
+		public void activity() {
+			refreshStyle();
 		}
 	}
 	

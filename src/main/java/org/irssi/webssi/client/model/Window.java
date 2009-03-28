@@ -44,11 +44,13 @@ public class Window implements Comparable<Window> {
 	private final Group<WindowItem> items = new Group<WindowItem>();
 	private WindowItem activeItem;
 	private Window.Listener listener;
+	private final Activity activity;
 	
 	public Window(String id, String name, int refnum) {
 		this.id = id;
 		this.name = name;
 		this.refnum = refnum;
+		this.activity = new Activity();
 	}
 
 	public void printText(String text) {
@@ -108,6 +110,10 @@ public class Window implements Comparable<Window> {
 	
 	public void setRefnum(int refnum) {
 		this.refnum = refnum;
+	}
+	
+	public Activity getActivity() {
+		return activity;
 	}
 	
 	public int compareTo(Window o) {

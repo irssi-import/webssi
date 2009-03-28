@@ -4,10 +4,12 @@ import org.irssi.webssi.client.Link;
 import org.irssi.webssi.client.events.EventHandler;
 import org.irssi.webssi.client.events.ServerEvent;
 import org.irssi.webssi.client.events.WindowEvent;
+import org.irssi.webssi.client.events.WindowItemActivityEvent;
 import org.irssi.webssi.client.events.WindowItemEvent;
 import org.irssi.webssi.client.events.WindowItemMovedEvent;
 import org.irssi.webssi.client.events.WindowItemNewEvent;
 import org.irssi.webssi.client.model.Channel;
+import org.irssi.webssi.client.model.DataLevel;
 import org.irssi.webssi.client.model.Group;
 import org.irssi.webssi.client.model.Server;
 import org.irssi.webssi.client.model.Window;
@@ -40,17 +42,25 @@ class WindowItemSynchronizer extends Synchronizer<WindowItem, WindowItemEvent, W
 				winLocator.getModelFrom(event).setActiveItem(getItem(event));
 			}
 		});
+		link.addEventHandler("window item activity", new EventHandler<WindowItemActivityEvent>() {
+			public void handle(WindowItemActivityEvent event) {
+				getItem(event).getActivity().activity(DataLevel.fromInt(event.getDataLevel()), event.getHilightColor());
+			}
+		});
 	}
 	
 	@Override
 	protected WindowItem createNew(WindowItemNewEvent event) {
 		Server server = serverLocator.getModelFrom(event.<ServerEvent>cast());
 		Window win = winLocator.getModelFrom(event);
+		WindowItem result;
 		if ("channel".equals(event.getItemType())) {
-			return new Channel(event.getVisibleName(), server, win, getId(event));
+			result = new Channel(event.getVisibleName(), server, win, getId(event));
 		} else {
-			return new WindowItem(event.getVisibleName(), server, win, getId(event));
+			result = new WindowItem(event.getVisibleName(), server, win, getId(event));
 		}
+		result.getActivity().activity(DataLevel.fromInt(event.getDataLevel()), event.getHilightColor());
+		return result;
 	}
 
 	@Override

@@ -55,6 +55,24 @@
 	/*white-space: pre*/
 }
 
+/* data levels */
+.dlNone {
+	color: #686868; /* dark grey */
+	font-weight: normal
+} 
+.dlText {
+	color: #000000; /* black */
+	font-weight: normal
+} 
+.dlMsg {
+	color: #000000; /* black, bold */
+	font-weight: bold
+} 
+.dlHilight {
+	color: #B21717; /* dark red, bold */
+	font-weight: bold
+} 
+
 .entryBox {
 	width: 100%
 }
