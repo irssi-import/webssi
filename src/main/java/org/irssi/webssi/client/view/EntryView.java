@@ -88,19 +88,16 @@ public class EntryView extends Composite implements Entry.Listener {
 	}
 	
 	/**
-	 * Blocks default behaviour of tab key, so it doesn't interfere with tab completion.
+	 * Blocks default behaviour of keys.
 	 * Based on http://stackoverflow.com/questions/3362/capturing-tab-key-in-text-box
 	 * @param myInput the textBox element.
 	 */
 	private static native void blockDefaultTab(Element myInput) /*-{
 		var keyHandler = function(e) {
-			var TABKEY = 9;
-			if(e.keyCode == TABKEY) {
-				if(e.preventDefault) {
-					e.preventDefault();
-				}
-				return false;
+			if(e.preventDefault) {
+				e.preventDefault();
 			}
+			return false;
 		};
 		
 		if (myInput.addEventListener) {
