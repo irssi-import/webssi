@@ -173,6 +173,8 @@ class GroupTreeView extends Composite {
 	
 	private final TreeListener treeListener = new TreeListener() {
 		public void onTreeItemSelected(TreeItem item) {
+			if (selectedItem != null && selectedItem != item)
+				selectedItem.setSelected(false);
 			selectedItem = item;
 			((TreeItemUserObject<?>)item.getUserObject()).onTreeItemSelected();
 		}
