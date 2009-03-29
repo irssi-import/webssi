@@ -171,8 +171,9 @@ class GroupTreeView extends Composite {
 		}
 	}
 	
-	private static final TreeListener TREE_LISTENER = new TreeListener() {
+	private final TreeListener treeListener = new TreeListener() {
 		public void onTreeItemSelected(TreeItem item) {
+			selectedItem = item;
 			((TreeItemUserObject<?>)item.getUserObject()).onTreeItemSelected();
 		}
 
@@ -182,11 +183,12 @@ class GroupTreeView extends Composite {
 	};
 	
 	private final Tree tree;
+	private TreeItem selectedItem;
 	
 	GroupTreeView() {
 		tree = new Tree();
 		initWidget(tree);
-		tree.addTreeListener(TREE_LISTENER);
+		tree.addTreeListener(treeListener);
 	}
 	
 	protected <T extends Comparable<T>> void init(Group<T> roots, Level<T, ?> topLevel) {
@@ -198,5 +200,19 @@ class GroupTreeView extends Composite {
 	 */
 	protected Tree getTree() {
 		return tree;
+	}
+	
+	protected TreeItem getSelectedItem() {
+		return selectedItem;
+	}
+	
+	protected void setSelectedItem(TreeItem selectedItem) {
+		if (this.selectedItem != selectedItem) {
+			if (this.selectedItem != null)
+				this.selectedItem.setSelected(false);
+			if (selectedItem != null)
+				selectedItem.setSelected(true);
+			this.selectedItem = selectedItem;
+		}
 	}
 }

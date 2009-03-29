@@ -102,7 +102,7 @@ public class ItemTreeView extends GroupTreeView implements WindowManager.Listene
 				treeItem = null;
 			}
 		}
-		getTree().setSelectedItem(treeItem, false);
+		setSelectedItem(treeItem);
 	}
 
 	/// Group.Listener<Window>
