@@ -245,6 +245,16 @@ sub ev_window($$$) {
 	return $result;
 }
 
+sub ev_window_new($) {
+	my ($window) = @_;
+	return ev_window('window new', $window, {
+		name => $window->{'name'},
+		refnum => $window->{'refnum'},
+		data_level => $window->{data_level},
+		hilight_color => $window->{hilight_color}
+	});
+}
+
 # window is passed here as an extra argument because $item->window() isn't always what we want it to be
 # when item is being moved, removed, or is null
 sub ev_window_item($$$$) {
@@ -305,31 +315,7 @@ sub ev_server_new($) {
 	return ev_server('server new', $server, {});
 }
 
-########## OBJECT MAPPING ##########
-
-sub map_object($) {
-	my ($object) = @_;
-	if (! defined($object) || $object == 0) { # TODO no way to see difference between NULL object and number 0? => need type info...
-		return undef;
-	}
-	
-	my $type = ref $object;
-	if ($type eq 'Irssi::UI::Window') {
-		return window_to_id($object);
-	} else {
-		die "unknown type $type of object '$object'";
-	}
-}
-
-sub map_full_object($) {
-	my ($object) = @_;
-	my $type = ref $object;
-	if ($type eq 'Irssi::UI::Window') {
-		return map_full_window($object);
-	} else {
-		die "unknown type $type of object '$object'";
-	}
-}
+########## OBJECT ID MAPPING ##########
 
 sub window_to_id($) {
 	my ($window) = @_;
@@ -340,18 +326,6 @@ sub window_to_id($) {
 sub id_to_window($) {
 	my ($id) = @_;
 	return (grep {$_->{'_irssi'} eq $id} Irssi::windows())[0];
-}
-
-sub map_full_window($) {
-	my ($window) = @_;
-	
-	return {
-		window => window_to_id($window),
-		name => $window->{'name'},
-		refnum => $window->{'refnum'},
-		data_level => $window->{data_level},
-		hilight_color => $window->{hilight_color}
-	};
 }
 
 sub item_to_id($) {
@@ -374,14 +348,6 @@ sub id_to_item($) {
 	}
 }
 
-sub map_full_nick($) {
-	my ($nick) = @_;
-	return {
-		#'id' => nick_to_id($nick),
-		'name' => $nick->{nick}
-	}
-}
-
 ########## INIT EVENTS ##########
 
 sub add_init_events($) {
@@ -391,7 +357,7 @@ sub add_init_events($) {
 		add_event($session, ev_server_new($server));
 	}
 	foreach my $win (Irssi::windows()) {
-		add_event($session, ev('window new', map_full_window($win)));
+		add_event($session, ev_window_new($win));
 		foreach my $item ($win->items()) {
 			add_event($session, ev_window_item_new($win, $item));
 			if ($item->isa('Irssi::Channel')) {
@@ -406,36 +372,9 @@ sub add_init_events($) {
 
 ########## SIGNALS ##########
 
-# $param_names = array of names of parameters, or undefined if there is only one, unnamed param
-# $param_full = index of parameter that has to be mapped fully, or -1 if none
-sub register_standard_signal {
-	my ($signal_name, $param_names, $param_full) = @_;
-	
-	if (!defined($param_full)) {
-		$param_full = -1
-	}
-	Irssi::signal_add($signal_name, sub {
-		my $params = {};
-		my $param_index = 0;
-		if (defined($param_names)) {
-			foreach my $param (@_) {
-				if ($param_index == $param_full) {
-					$params->{$param_names->[$param_index++]} = map_full_object($param);
-				} else {
-					$params->{$param_names->[$param_index++]} = map_object($param);
-				}
-			}
-		} else {
-			# assert param_full == 0 && scalar(@_) == 1
-			$params = map_full_object($_[0]);
-		}
-		add_event_all(ev($signal_name, $params));
-	});
-}
-
 Irssi::signal_add('window created', sub {
 	my ($win) = @_;
-	add_event_all(ev('window new', map_full_window($win)));
+	add_event_all(ev_window_new($win));
 });
 
 Irssi::signal_add('window destroyed', sub {
@@ -443,8 +382,10 @@ Irssi::signal_add('window destroyed', sub {
 	add_event_all(ev('window remove', {window => window_to_id($win)}));
 });
 
-register_standard_signal('window changed', ['window', 'old']);
-#register_standard_signal('window changed automatic', ['window', 'old']);
+Irssi::signal_add('window changed', sub {
+	my ($win, $old) = @_;
+	add_event_all(ev('window changed', {window => window_to_id($win), old => window_to_id($old)}));
+});
 
 Irssi::signal_add('window item new', sub {
 	my ($win, $item) = @_;
