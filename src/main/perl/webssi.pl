@@ -1,6 +1,6 @@
 use strict;
 use JSON;
-#use HTTP::Daemon::SSL;
+use HTTP::Daemon::SSL;
 use HTTP::Daemon;
 use HTTP::Response;
 use Data::Dumper;
@@ -23,20 +23,115 @@ sub new_session {
 
 ########## HTTP ##########
 
-my $daemon = HTTP::Daemon->new(
-	LocalPort => 38444,
-	Reuse => 1,
-	Blocking => 0
-) || die;
-Irssi::print('Webssi listening at: ' . $daemon->url);
+Irssi::settings_add_str('webssi', 'webssi_password', '');
+Irssi::settings_add_int('webssi', 'webssi_http_port', -1);
+Irssi::settings_add_int('webssi', 'webssi_https_port', -1);
+Irssi::settings_add_str('webssi', 'webssi_https_key_file', Irssi::get_irssi_dir()."/webssi-key.pem");
+Irssi::settings_add_str('webssi', 'webssi_https_cert_file', Irssi::get_irssi_dir()."/webssi-cert.pem");
 
-Irssi::input_add(fileno($daemon), INPUT_READ, \&handle_connection,0);
+my ($settings_http_port, $settings_https_port, $settings_https_key_file, $settings_https_cert_file, $settings_password);
+my ($http_daemon, $https_daemon);
+
+# Called when loading, or when the settings have changed
+# (re)starts the http and/or https daemon if forced or if relevant settings have changed
+sub refresh_daemon {
+	my ($force) = @_;
+	
+	if ($force || $settings_password ne Irssi::settings_get_str('webssi_password')) {
+		if (Irssi::settings_get_str('webssi_password') eq '') {
+			# if the password previously wasn't set, force start of daemon even when other settings haven't changed
+			$force = 1;
+		}
+		$settings_password = Irssi::settings_get_str('webssi_password');
+		if ($settings_password eq '') {
+			Irssi::print("No password configured for webssi. Use /SET webssi_password <password>");
+		}
+	}
+	
+	if ($force || $settings_http_port != Irssi::settings_get_int('webssi_http_port')) {
+		if ($http_daemon) {
+			Irssi::print('Stopping listening on ' . $http_daemon->url);
+			$http_daemon->close();
+		}
+		
+		$settings_http_port = Irssi::settings_get_int('webssi_http_port');
+		
+		if ($settings_http_port > 0 && $settings_password ne '') {
+			$http_daemon = HTTP::Daemon->new(
+				LocalPort => $settings_http_port,
+				Reuse => 1,
+				Blocking => 0,
+				LocalAddr => "127.0.0.1"
+			);
+			if (! $http_daemon) {
+				Irssi::print("Failed to start HTTP server: " . $!);
+			} else {
+				Irssi::print('Webssi listening at: ' . $http_daemon->url . ' (for security reasons http can only be used from localhost)');
+				Irssi::input_add(fileno($http_daemon), INPUT_READ, \&handle_http_connection, 0);
+			}
+		}
+	}
+
+	if ($force || $settings_https_port != Irssi::settings_get_int('webssi_https_port')
+			|| $settings_https_key_file ne Irssi::settings_get_str('webssi_https_key_file')
+			|| $settings_https_cert_file ne Irssi::settings_get_str('webssi_https_cert_file')) {
+		if ($https_daemon) {
+			Irssi::print('Stopping listening on ' . $https_daemon->url);
+			$https_daemon->close();
+		}
+		
+		$settings_https_port = Irssi::settings_get_int('webssi_https_port');
+		$settings_https_key_file = Irssi::settings_get_str('webssi_https_key_file');
+		$settings_https_cert_file = Irssi::settings_get_str('webssi_https_cert_file');
+		
+		if ($settings_https_port > 0 && $settings_password ne '') {
+			if (! -e $settings_https_key_file || ! -e $settings_https_cert_file) {
+				Irssi::print("No key or certificate file found for https server. You can generate them by executing the following commands in a shell: \n"
+					. "   openssl req -x509 -days 3650 -new -nodes -keyout $settings_https_key_file -out $settings_https_cert_file -batch \n"
+					. "   chmod 600 $settings_https_key_file $settings_https_cert_file\n"
+					. " and then do /WEBSSI RESET in irssi\n"
+					. " The first time you connect with your browser, you will get a security warning that the certificate cannot be validated."
+					. " That is normal because no authority has signed the certificate you just created.\n"
+					. " You should tell your browser to trust this certificate (after all, you created it yourself)."
+					. " If you are careful/paranoid, you can compare the fingerprint shown in your browser to the output of:\n"
+					. "   openssl x509 -noout -in $settings_https_cert_file -fingerprint");
+			} else {
+				$https_daemon = HTTP::Daemon::SSL->new(
+					LocalPort => $settings_https_port,
+					Reuse => 1,
+					Blocking => 0,
+					SSL_key_file => $settings_https_key_file,
+					SSL_cert_file => $settings_https_cert_file
+				);
+				if (! $https_daemon) {
+					Irssi::print("Failed to start HTTPS server: " . $!);
+				} else {
+					Irssi::print('Webssi listening at: ' . $https_daemon->url);
+					Irssi::input_add(fileno($https_daemon), INPUT_READ, \&handle_https_connection, 0);
+				}
+			}
+		}
+	}
+	
+	if ($settings_http_port <= 0 && $settings_https_port <= 0) {
+		Irssi::print("No listening port configured for webssi. Use /SET webssi_https_port <port number>");
+	}
+}
 
 my %tag;
 
-sub handle_connection {
-	my $client = $daemon->accept;
-	$tag{$client} = Irssi::input_add(fileno($client), INPUT_READ, \&handle_request, $client);
+sub handle_http_connection {
+	my $client = $http_daemon->accept;
+	if ($client) {
+		$tag{$client} = Irssi::input_add(fileno($client), INPUT_READ, \&handle_request, $client);
+	}
+}
+
+sub handle_https_connection {
+	my $client = $https_daemon->accept;
+	if ($client) {
+		$tag{$client} = Irssi::input_add(fileno($client), INPUT_READ, \&handle_request, $client);
+	}
 }
 
 sub handle_request($) {
@@ -137,9 +232,15 @@ sub send_response_now($) {
 	$session->{response_scheduled} = 0;
 }
 
+# for easier development only. There isn't any "normal"" way to enable this (just Irssi::Script::webssi::disable_authentication())
+my $authentication_disabled = 0;
+sub disable_authentication {
+	$authentication_disabled = 1;
+}
+
 sub check_request_authorization($) {
 	my ($request) = @_;
-	if (Irssi::settings_get_bool('webssi_authentication_disabled')) {
+	if ($authentication_disabled) {
 		return 1;
 	}
 	my ($request_username, $request_password) = $request->authorization_basic;
@@ -147,8 +248,7 @@ sub check_request_authorization($) {
 		debug("no authorization");
 		return 0;
 	}
-	my $config_password = Irssi::settings_get_str('webssi_password');
-	if ($request_password eq $config_password) {
+	if ($request_password eq $settings_password) {
 		debug("Password ok");
 		return 1;
 	} else {
@@ -165,8 +265,9 @@ sub send_authorization_required($) {
 	$client->send_response($response);
 }
 
-Irssi::settings_add_str('webssi', 'webssi_password', '');
-Irssi::settings_add_bool('webssi', 'webssi_authentication_disabled', 0);
+Irssi::signal_add('setup changed', \&refresh_daemon);
+
+refresh_daemon(1);
 
 ########## EVENTS ##########
 
@@ -543,7 +644,7 @@ sub before_send_response() {
 	update_entry();
 }
 
-########## COMMANDS ##########
+########## WEBSSI COMMANDS ##########
 
 sub processCommands($$) {
 	my ($session, $commandstring) = @_;
@@ -617,6 +718,19 @@ sub cmd_key($) {
 		Irssi::signal_emit('gui key pressed', $key)
 	}
 }
+
+########## IRSSI COMMANDS ##########
+
+Irssi::command_bind('webssi', sub {
+    my ($data, $server, $item) = @_;
+    $data =~ s/\s+$//g;
+    Irssi::command_runsub('webssi', $data, $server, $item);
+});
+
+Irssi::command_bind('webssi reset', sub {
+	%sessions = {};
+	refresh_daemon(1);
+});
 
 ########## DEBUG ##########
 
