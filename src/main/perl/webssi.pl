@@ -14,7 +14,7 @@ my %sessions;
 
 sub new_session {
 	my $sessionid = "S" . int(rand(1000000000000000));
-	my $session = {id => $sessionid, events => []};
+	my $session = {id => $sessionid, events => [], creation_time => time()};
 	$sessions{$sessionid} = $session;
 	add_init_events($session);
 	#debug("creating new session:" . Dumper($session));
@@ -121,14 +121,16 @@ sub refresh_daemon {
 my %tag;
 
 sub handle_http_connection {
-	my $client = $http_daemon->accept;
-	if ($client) {
-		$tag{$client} = Irssi::input_add(fileno($client), INPUT_READ, \&handle_request, $client);
-	}
+	handle_connection($http_daemon);
 }
 
 sub handle_https_connection {
-	my $client = $https_daemon->accept;
+	handle_connection($https_daemon);
+}
+
+sub handle_connection($) {
+	my ($daemon) = @_;
+	my $client = $daemon->accept;
 	if ($client) {
 		$tag{$client} = Irssi::input_add(fileno($client), INPUT_READ, \&handle_request, $client);
 	}
@@ -159,6 +161,7 @@ sub handle_request($) {
 		my $session;
 		if ($sessionid eq 'newSession') {
 			$session = new_session();
+			$session->{client_ip} = $client->peerhost();
 		} else {
 			$session = $sessions{$sessionid};
 			if (!$session) {
@@ -168,6 +171,8 @@ sub handle_request($) {
 				return;
 			}
 		}
+		
+		$session->{waiting_on_client_since} = undef; # not waiting anymore, we got one
 		
 		if ($session->{pending_client}) {
 			debug("dropping older request");
@@ -277,6 +282,16 @@ sub add_event($$) {
 	$session->{'last_event_id'} = defined($session->{'last_event_id'}) ? ($session->{'last_event_id'} + 1) : 1;
 	$event_copy{'i'} = $session->{'last_event_id'};
 	push @{$session->{events}}, \%event_copy;
+	
+	if ($session->{waiting_on_client_since}) {
+		if (time() - $session->{waiting_on_client_since} > 60) {
+			delete $sessions{$session->{'id'}};
+			Irssi::print('Webssi: Session ' . $session->{'id'} . ' expired');
+		}
+	} elsif (! $session->{pending_client}) {
+		$session->{waiting_on_client_since} = time();
+	}
+	
 	send_response_later($session);
 }
 
@@ -728,8 +743,38 @@ Irssi::command_bind('webssi', sub {
 });
 
 Irssi::command_bind('webssi reset', sub {
-	%sessions = {};
+	%sessions = ();
 	refresh_daemon(1);
+});
+
+Irssi::command_bind('webssi status', sub {
+	Irssi::print("Webssi status:");
+	my @daemons;
+	if ($http_daemon || $https_daemon) {
+		if ($http_daemon) {
+			push @daemons, $http_daemon->url;
+		}
+		if ($https_daemon) {
+			push @daemons, $https_daemon->url;
+		}
+
+		Irssi::print(' Listening on ' . (join ' and ', @daemons));
+	} else {
+		Irssi::print(' Not listening on any port.');
+	}
+	if (keys(%sessions)) {
+		Irssi::print(' Sessions:');
+		for my $session (values(%sessions)) {
+			my $waiting = $session->{waiting_on_client_since} ? (time() - $session->{waiting_on_client_since}) : 0;
+			Irssi::print('  From ' . $session->{client_ip} . ' started ' . (time() - $session->{creation_time}). ' sec ago'
+				. ($waiting ? (', waiting on client since '. $waiting . ' sec ago') : '')
+				#. ', ' . scalar(@{$session->{events}}) . " events pending" # TODO check before starting output
+			);
+		}
+	} else {
+		Irssi::print(" No active sessions");
+	}
+	
 });
 
 ########## DEBUG ##########
