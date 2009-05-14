@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.Map.Entry;
 
 /**
  * Sorted collection of items, identifiable by a {@link String} Id.
@@ -159,5 +160,15 @@ public class Group<T extends Comparable<T>> {
 	 */
 	public boolean contains(T item) {
 		return sortedItems.contains(item);
+	}
+
+	/**
+	 * Removed all items in the group.
+	 */
+	public void clear() {
+		HashMap<String, T> idToItemCopy = new HashMap<String, T>(idToItem); // copy to prevent concurrent modification
+		for (Entry<String, T> entry : idToItemCopy.entrySet()) {
+			removeItem(entry.getKey(), entry.getValue());
+		}
 	}
 }

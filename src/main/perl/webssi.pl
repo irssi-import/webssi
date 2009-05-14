@@ -21,6 +21,12 @@ sub new_session {
 	return $sessions{$sessionid};
 }
 
+sub remove_session($) {
+	my ($session) = @_;
+	delete $sessions{$session->{'id'}};
+	clear_session_bookmarks($session);
+}
+
 ########## HTTP ##########
 
 Irssi::settings_add_str('webssi', 'webssi_password', '');
@@ -211,7 +217,7 @@ sub send_response_later($) {
 	}
 	$session->{response_scheduled} = 1;
 	Irssi::timeout_add_once(50, \&send_response_now, $session);
-	debug("send_response_later: " . scalar(@{$session->{events}}) . " events waiting");
+	#debug("send_response_later: " . scalar(@{$session->{events}}) . " events waiting");
 }
 
 sub send_response_now($) {
@@ -285,7 +291,7 @@ sub add_event($$) {
 	
 	if ($session->{waiting_on_client_since}) {
 		if (time() - $session->{waiting_on_client_since} > 60) {
-			delete $sessions{$session->{'id'}};
+			remove_session($session);
 			Irssi::print('Webssi: Session ' . $session->{'id'} . ' expired');
 		}
 	} elsif (! $session->{pending_client}) {
@@ -300,6 +306,16 @@ sub add_event_all($) {
 	my ($event) = @_;
 	for my $session (values(%sessions)) {
 		add_event($session, $event);
+	}
+}
+
+# adds event to every session following the given item
+sub add_event_item_following($$) {
+	my ($item, $event) = @_;
+	for my $session (values(%sessions)) {
+		if (is_following_item($session, $item)) {
+			add_event($session, $event);
+		}
 	}
 }
 
@@ -435,7 +451,6 @@ sub ev_server_new($) {
 
 sub window_to_id($) {
 	my ($window) = @_;
-	#return "" . $window->{'refnum'};
 	return '' . $window->{'_irssi'};
 }
 
@@ -464,7 +479,7 @@ sub id_to_item($) {
 	}
 }
 
-########## INIT EVENTS ##########
+########## INIT AND RESYNC EVENTS ##########
 
 sub add_init_events($) {
 	my ($session) = @_;
@@ -476,14 +491,28 @@ sub add_init_events($) {
 		add_event($session, ev_window_new($win));
 		foreach my $item ($win->items()) {
 			add_event($session, ev_window_item_new($win, $item));
-			if ($item->isa('Irssi::Channel')) {
-				foreach my $nick ($item->nicks()) {
-					add_event($session, ev_nicklist_new($item, $nick));
-				}
-			}
+		}
+		if (is_following_window($session, $win)) {
+			resync_window($session, $win);
 		}
 	}
 	add_event($session, ev('window changed', {'window' => window_to_id(Irssi::active_win())}));
+}
+
+# bring the given session up-to-date on the given window.
+# called when the session starts following the window (again)
+sub resync_window($$) {
+	my ($session, $win) = @_;
+	
+	foreach my $item ($win->items()) {
+		if ($item->isa('Irssi::Channel')) {
+			add_event($session, ev_channel('nicklist clear', $item, {}));
+			foreach my $nick ($item->nicks()) {
+				add_event($session, ev_nicklist_new($item, $nick));
+			}
+		}
+	}
+	update_text($session, $win);
 }
 
 ########## SIGNALS ##########
@@ -501,6 +530,11 @@ Irssi::signal_add('window destroyed', sub {
 Irssi::signal_add('window changed', sub {
 	my ($win, $old) = @_;
 	add_event_all(ev('window changed', {window => window_to_id($win), old => window_to_id($old)}));
+	for my $session (values(%sessions)) {
+		if (is_following_window($session, $win)) {
+			resync_window($session, $win);
+		}
+	}
 });
 
 Irssi::signal_add('window item new', sub {
@@ -533,13 +567,13 @@ Irssi::signal_add('window item activity', sub {
 
 Irssi::signal_add('nicklist new', sub {
 	my ($channel, $nick) = @_;
-	add_event_all(ev_nicklist_new($channel, $nick));
+	add_event_item_following($channel, ev_nicklist_new($channel, $nick));
 });
 
 Irssi::signal_add('nicklist remove', sub {
 	my ($channel, $nick) = @_;
 	if ($channel->window()) { # ignore events for a channel that's just been removed
-		add_event_all(ev_nicklist('nicklist remove', $channel, $nick, {}));
+		add_event_item_following($channel, ev_nicklist('nicklist remove', $channel, $nick, {}));
 	}
 });
 
@@ -547,7 +581,7 @@ Irssi::signal_add('nicklist changed', sub {
 	my ($channel, $nick, $old_name) = @_;
 	# can't use ev_nicklist here because the nick $nick has already changed.
 	# we send the event with the old nick, passing the new one as extra arg
-	add_event_all(ev_channel('nicklist changed', $channel, {
+	add_event_item_following($channel, ev_channel('nicklist changed', $channel, {
 		name => $old_name,
 		new_name => $nick->{nick}
 	}));
@@ -593,7 +627,11 @@ sub sig_print_text {
 	}
 	$ignore_printing++;
 	
-	update_text($dest->{window});
+	for my $session (values(%sessions)) {
+		if (is_following_window($session, $dest->{window})) {
+			update_text($session, $dest->{window});
+		}
+	}
 #
 #	add_event_all(ev_text($dest->{'window'}, $stripped));
 #	#add_event_all(ev_text($dest->{'window'}, text_to_html($text)));
@@ -603,12 +641,12 @@ sub sig_print_text {
 
 # add events for new text in the given window to the clients
 sub update_text {
-	my ($window) = @_;
+	my ($session, $window) = @_;
 
 	my $view = $window->view;
 	
 	my $line;
-	my $last_sent_line = $view->get_bookmark('webssi');
+	my $last_sent_line = $view->get_bookmark('webssi_' . $session->{id});
 	if ($last_sent_line) {
 		$line = $last_sent_line->next;
 	} else {
@@ -618,12 +656,23 @@ sub update_text {
 	while ($line) {
 		my $text = $line->get_text(1);
 		if ($text !~ /DEBUG/) {
-			add_event_all(ev_text($window, text_to_html($text)));
+			add_event($session, ev_text($window, text_to_html($text)));
 		}
 		$line = $line->next;
 	}
 	
-	$view->set_bookmark_bottom('webssi')
+	$view->set_bookmark_bottom('webssi_' . $session->{id});
+}
+
+# remove all bookmarks added for the session
+# called when session is removed to avoid leaking
+sub clear_session_bookmarks($) {
+	my ($session) = @_;
+	foreach my $win (Irssi::windows()) {
+		if ($win->view->get_bookmark('webssi_' . $session->{id})) {
+			$win->view->set_bookmark('webssi_' . $session->{id}, undef);
+		}
+	}
 }
 
 #Irssi::signal_add('gui print text', \&sig_gui_print_text);
@@ -657,6 +706,18 @@ Irssi::signal_add_last('gui key pressed', sub {
 
 sub before_send_response() {
 	update_entry();
+}
+
+# if the session is interested in detailed events of the given window (e.g. lines being printed in it)
+sub is_following_window($$) {
+	my ($session, $win) = @_;
+	return $win->{refnum} == Irssi::active_win()->{refnum}; # for now just follow active window
+}
+
+# if the session is interested in detailed events of the given window item (e.g. nicklist changing)
+sub is_following_item($$) {
+	my ($session, $item) = @_;
+	return is_following_window($session, $item->window()); # follow all items in active window
 }
 
 ########## WEBSSI COMMANDS ##########
@@ -743,7 +804,9 @@ Irssi::command_bind('webssi', sub {
 });
 
 Irssi::command_bind('webssi reset', sub {
-	%sessions = ();
+	foreach my $session (values(%sessions)) {
+		remove_session($session);
+	}
 	refresh_daemon(1);
 });
 

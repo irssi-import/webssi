@@ -1,6 +1,7 @@
 package org.irssi.webssi.client.sync;
 
 import org.irssi.webssi.client.Link;
+import org.irssi.webssi.client.events.EventHandler;
 import org.irssi.webssi.client.events.NicklistChangedEvent;
 import org.irssi.webssi.client.events.NicklistEvent;
 import org.irssi.webssi.client.events.NicklistNewEvent;
@@ -23,6 +24,11 @@ class NickSynchronizer extends Synchronizer<Nick, NicklistEvent, NicklistNewEven
 				return event.getNewName();
 			}
 		}));
+		link.addEventHandler("nicklist clear", new EventHandler<NicklistEvent>() {
+			public void handle(NicklistEvent event) {
+				getGroup(event).clear();
+			}
+		});
 	}
 	
 	private Channel getChannel(WindowItemEvent event) {
