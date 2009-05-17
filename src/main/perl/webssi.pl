@@ -181,7 +181,7 @@ sub handle_request($) {
 		$session->{waiting_on_client_since} = undef; # not waiting anymore, we got one
 		
 		if ($session->{pending_client}) {
-			debug("dropping older request");
+			#debug("dropping older request");
 			my $client = $session->{pending_client};
 			my $response = HTTP::Response->new(200, undef, undef, "[{\"type\":\"request superseded\", \"i\": -1}]");
 			$client->send_response($response);
@@ -717,7 +717,7 @@ my $ignore_printing = 0;
 sub sig_print_text {
 	my ($dest, $text, $stripped) = @_;
 	
-	if ($ignore_printing || $stripped =~ /DEBUG/ || $stripped =~ /^\t/) { # TODO remove this exceptions...
+	if ($ignore_printing) {
 		return;
 	}
 	$ignore_printing++;
@@ -748,9 +748,7 @@ sub update_text {
 	
 	while ($line) {
 		my $text = $line->get_text(1);
-		if ($text !~ /DEBUG/) {
-			add_event($session, ev_text($window, text_to_html($text)));
-		}
+		add_event($session, ev_text($window, text_to_html($text)));
 		$line = $line->next;
 	}
 	
@@ -923,14 +921,26 @@ Irssi::command_bind('webssi status', sub {
 
 ########## DEBUG ##########
 
+my $debug_enabled = 0;
+
+# for development only (call using Irssi::Script::webssi::enable_debug())
+sub enable_debug {
+	$debug_enabled = 1;
+}
+
 sub debug {
-	Irssi::print("DEBUG: " . $_[0]);
+	if ($debug_enabled) {
+		$ignore_printing++;
+		Irssi::print("DEBUG: " . $_[0]);
+		$ignore_printing--;
+	}
 }
 
 sub print_warn {
+	$ignore_printing++;
 	Irssi::print("WARN: " . $_[0]);
+	$ignore_printing--;
 }
-
 
 ########## COLORS ##########
 # based on log2ansi.pl by Peder Stray
