@@ -22,27 +22,29 @@ public class View {
 		wmv.setStylePrimaryName("winDeck");
 		
 		winTabBar = new WinTabBar(model.getWm());
-		
 		itemTreeView = new ItemTreeView(model.getServers(), model.getWm());
-		
 		entryView = new EntryView(model);
+		entryView.setStylePrimaryName("entryBox");
 		
 		DockPanel dock = new DockPanel();
 		dock.setStylePrimaryName("rootDock");
 		
-		dock.add(itemTreeView, DockPanel.WEST);
 		dock.add(winTabBar, DockPanel.NORTH);
-		dock.add(wmv, DockPanel.CENTER);
 		dock.add(entryView, DockPanel.SOUTH);
+		dock.add(wmv, DockPanel.CENTER);
 
-		dock.setCellWidth(itemTreeView, "100px");
 		dock.setCellHeight(winTabBar, "20px");
 		dock.setCellHeight(entryView, "30px");
+		dock.setCellHeight(wmv, "100%");
 		
-		rootPanel.add(dock);
+		DockPanel outerDock = new DockPanel();
+		outerDock.setStylePrimaryName("rootDock");
+		outerDock.add(itemTreeView, DockPanel.WEST);
+		outerDock.add(dock, DockPanel.CENTER);
+		outerDock.setCellWidth(itemTreeView, "100px");
+		
+		rootPanel.add(outerDock);
 		rootPanel.setStylePrimaryName("root");
-		
-		entryView.setStylePrimaryName("entryBox");
 	}
 	
 	public void debug(String sender, String message) {
