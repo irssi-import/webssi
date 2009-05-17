@@ -26,6 +26,7 @@ class WinDeck extends Composite implements WindowManager.Listener, Group.Listene
 
 	public void windowChanged(Window win) {
 		deck.showWidget(wm.getWindows().indexFor(win));
+		getWindowView(win).activated();
 	}
 
 	public void itemAdded(Window win, int index) {

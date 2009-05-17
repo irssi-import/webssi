@@ -75,4 +75,13 @@ class WinView extends Composite implements Window.Listener {
 	public void nameChanged(String name) {
 		// do nothing
 	}
+
+	/**
+	 * Called when this view is activated in the deck.
+	 */
+	void activated() {
+		// browsers seem to forget scroll position of invisible ScrollPanels,
+		// so scroll all the way down when we get selected
+		bufferViewScroller.scrollToBottom();
+	}
 }
