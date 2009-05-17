@@ -313,8 +313,16 @@ sub add_event_all($) {
 sub add_event_item_following($$) {
 	my ($item, $event) = @_;
 	for my $session (values(%sessions)) {
-		if (is_following_item($session, $item)) {
+		if (is_following_winitem($session, $item)) {
 			add_event($session, $event);
+		} else {
+			my $winitem_state = get_winitem_state($session, $item);
+			if ($winitem_state && $winitem_state->{uptodate}) {
+				# not sending this event, so it is not up to date anymore
+				#$winitem_state->{uptodate} = 0;
+				# no point in remembering this winitem_state
+				delete $session->{items}->{item_to_id($item)}; 
+			}
 		}
 	}
 }
@@ -492,9 +500,7 @@ sub add_init_events($) {
 		foreach my $item ($win->items()) {
 			add_event($session, ev_window_item_new($win, $item));
 		}
-		if (is_following_window($session, $win)) {
-			resync_window($session, $win);
-		}
+		update_following_window($win);
 	}
 	add_event($session, ev('window changed', {'window' => window_to_id(Irssi::active_win())}));
 }
@@ -503,16 +509,86 @@ sub add_init_events($) {
 # called when the session starts following the window (again)
 sub resync_window($$) {
 	my ($session, $win) = @_;
-	
-	foreach my $item ($win->items()) {
-		if ($item->isa('Irssi::Channel')) {
-			add_event($session, ev_channel('nicklist clear', $item, {}));
-			foreach my $nick ($item->nicks()) {
-				add_event($session, ev_nicklist_new($item, $nick));
+	update_text($session, $win);
+}
+
+# re-send the full details (nicklist) of the item to the session
+sub resync_winitem($$) {
+	my ($session, $item) = @_;
+	if ($item->isa('Irssi::Channel')) {
+		add_event($session, ev_channel('nicklist clear', $item, {}));
+		foreach my $nick ($item->nicks()) {
+			add_event($session, ev_nicklist_new($item, $nick));
+		}
+	}
+}
+
+#sub get_win_state($$) {
+#	my ($session, $win) = @_;
+#	return $session->{windows}->{window_to_id($win)};
+#}
+#
+#sub get_or_create_win_state($$) {
+#	my ($session, $win) = @_;
+#	my $win_state = $session->{windows}->{window_to_id($win)};
+#	if (!$win_state) {
+#		$win_state = {};
+#		$session->{windows}->{window_to_id($win)} = $win_state;
+#	}
+#	return $win_state;
+#}
+
+sub get_winitem_state($$) {
+	my ($session, $winitem) = @_;
+	return $session->{items}->{item_to_id($winitem)};
+}
+
+# returns the state of the given item in the session, or creates a new state if none was found
+sub get_or_create_winitem_state($$) {
+	my ($session, $winitem) = @_;
+	my $winitem_state = $session->{items}->{item_to_id($winitem)};
+	if (!$winitem_state) {
+		$winitem_state = {};
+		$session->{items}->{item_to_id($winitem)} = $winitem_state;
+	}
+	return $winitem_state;
+}
+
+sub is_following_window($$) {
+	my ($session, $win) = @_;
+	return Irssi::active_win()->{refnum} == $win->{refnum};
+}
+
+sub is_following_winitem($$) {
+	my ($session, $winitem) = @_;
+	return is_following_window($session, $winitem->window()); # follow all items in a followed window
+}
+
+# make sure every client following this window (or items in it) is up-to-date
+sub update_following_window($) {
+	my ($win) = @_;
+	for my $session (values(%sessions)) {
+		if (is_following_window($session, $win)) {
+			resync_window($session, $win);
+		}
+	}
+	for my $item ($win->items()) {
+		update_following_winitem($item);
+	}
+}
+
+# make sure every client following this window item is up-to-date
+sub update_following_winitem($) {
+	my ($winitem) = @_;
+	for my $session (values(%sessions)) {
+		if (is_following_winitem($session, $winitem)) {
+			my $winitem_state = get_or_create_winitem_state($session, $winitem);
+			if (! $winitem_state->{uptodate}) {
+				resync_winitem($session, $winitem);
+				$winitem_state->{uptodate} = 1;
 			}
 		}
 	}
-	update_text($session, $win);
 }
 
 ########## SIGNALS ##########
@@ -520,19 +596,28 @@ sub resync_window($$) {
 Irssi::signal_add('window created', sub {
 	my ($win) = @_;
 	add_event_all(ev_window_new($win));
+	update_following_window($win);
 });
 
 Irssi::signal_add('window destroyed', sub {
 	my ($win) = @_;
 	add_event_all(ev('window remove', {window => window_to_id($win)}));
+	
+#	# remove state of window from all sessions
+#	for my $session (values(%sessions)) {
+#		if (get_win_state($session, $win)) {
+#			delete $session->{windows}->{window_to_id($win)};
+#		}
+#	}
 });
 
 Irssi::signal_add('window changed', sub {
 	my ($win, $old) = @_;
 	add_event_all(ev('window changed', {window => window_to_id($win), old => window_to_id($old)}));
 	for my $session (values(%sessions)) {
-		if (is_following_window($session, $win)) {
-			resync_window($session, $win);
+		update_following_window($win);
+		if ($old) {
+			update_following_window($old);
 		}
 	}
 });
@@ -540,22 +625,32 @@ Irssi::signal_add('window changed', sub {
 Irssi::signal_add('window item new', sub {
 	my ($win, $item) = @_;
 	add_event_all(ev_window_item_new($win,$item));
+	update_following_winitem($item);
 });
 
 Irssi::signal_add('window item remove', sub {
 	my ($window, $item) = @_;
 	add_event_all(ev_window_item('window item remove', $window, $item, {}));
+	
+	# remove state of item from all sessions
+	for my $session (values(%sessions)) {
+		if (get_winitem_state($session, $item)) {
+			delete $session->{items}->{item_to_id($item)};
+		}
+	}
 });
 
 Irssi::signal_add('window item moved', sub {
 	my ($window, $item, $old_window) = @_;
 	add_event_all(ev_window_item('window item moved', $old_window, $item, {new_window_event => ev_window(undef, $window, {})}));
+	update_following_winitem($item);
 });
 
 Irssi::signal_add('window item changed', sub {
 	my ($window, $item) = @_;
 	# note: $item might be null here
 	add_event_all(ev_window('window item changed', $window, {item => item_to_id($item)}));
+	update_following_window($window);
 });
 
 Irssi::signal_add('window item activity', sub {
@@ -632,10 +727,8 @@ sub sig_print_text {
 			update_text($session, $dest->{window});
 		}
 	}
-#
-#	add_event_all(ev_text($dest->{'window'}, $stripped));
 #	#add_event_all(ev_text($dest->{'window'}, text_to_html($text)));
-#	
+	
 	$ignore_printing--;
 }
 
@@ -706,18 +799,6 @@ Irssi::signal_add_last('gui key pressed', sub {
 
 sub before_send_response() {
 	update_entry();
-}
-
-# if the session is interested in detailed events of the given window (e.g. lines being printed in it)
-sub is_following_window($$) {
-	my ($session, $win) = @_;
-	return $win->{refnum} == Irssi::active_win()->{refnum}; # for now just follow active window
-}
-
-# if the session is interested in detailed events of the given window item (e.g. nicklist changing)
-sub is_following_item($$) {
-	my ($session, $item) = @_;
-	return is_following_window($session, $item->window()); # follow all items in active window
 }
 
 ########## WEBSSI COMMANDS ##########
