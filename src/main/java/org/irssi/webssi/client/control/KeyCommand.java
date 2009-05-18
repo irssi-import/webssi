@@ -42,35 +42,39 @@ class KeyCommand extends Command {
 	void execute() {
 		origEntryContent = entry.getContent();
 		origEntryPos = entry.getCursorPos();
+		boolean predict = true;
 		
 		IntArray keys = IntArray.create();
 		
-		if ((modifiers & KeyboardListener.MODIFIER_ALT) != 0)
+		if ((modifiers & KeyboardListener.MODIFIER_ALT) != 0) {
 			keys.push(27);
+			predict = false; // we shouldn't try to predict what this combo does
+		}
 		
 		if ((modifiers & KeyboardListener.MODIFIER_CTRL) != 0 && keyCode >= 'A' && keyCode <= 'Z') {
 			keys.push(keyCode - 'A' + 1);
 		} else if (keyCode == KeyboardListener.KEY_ENTER) {
 			keys.push(10);
-			entry.setContent("", 0);
+			if (predict)
+				entry.setContent("", 0);
 		} else if (keyCode == KeyboardListener.KEY_BACKSPACE) {
 			keys.push(127);
-			if (entry.getCursorPos() != 0) {
+			if (predict && entry.getCursorPos() != 0) {
 				String beforeCursor = entry.getBeforeCursor();
 				entry.setBeforeCursor(beforeCursor.substring(0, beforeCursor.length() - 1));
 			}
 		} else if (keyCode == KeyboardListener.KEY_DELETE) {
 			keys.push(27, 91, 51, 126);
-			if (entry.getCursorPos() != entry.getContent().length()) {
+			if (predict && entry.getCursorPos() != entry.getContent().length()) {
 				entry.setAfterCursor(entry.getAfterCursor().substring(1));
 			}
 		} else if (keyCode == KeyboardListener.KEY_LEFT) {
 			keys.push(27, 91, 68);
-			if (entry.getCursorPos() != 0)
+			if (predict && entry.getCursorPos() != 0)
 				entry.setCursorPos(entry.getCursorPos() - 1);
 		} else if (keyCode == KeyboardListener.KEY_RIGHT) {
 			keys.push(27, 91, 67);
-			if (entry.getCursorPos() != entry.getContent().length())
+			if (predict && entry.getCursorPos() != entry.getContent().length())
 				entry.setCursorPos(entry.getCursorPos() + 1);
 		} else if (keyCode == KeyboardListener.KEY_UP) {
 			keys.push(27, 91, 65);
@@ -78,10 +82,12 @@ class KeyCommand extends Command {
 			keys.push(27, 91, 66);
 		} else if (keyCode == KeyboardListener.KEY_HOME) {
 			keys.push(27, 91, 72);
-			entry.setCursorPos(0);
+			if (predict)
+				entry.setCursorPos(0);
 		} else if (keyCode == KeyboardListener.KEY_END) {
 			keys.push(27, 91, 70);
-			entry.setCursorPos(entry.getContent().length());
+			if (predict)
+				entry.setCursorPos(entry.getContent().length());
 		} else if (keyCode == KeyboardListener.KEY_PAGEUP) {
 			keys.push(27, 91, 53, 126);
 		} else if (keyCode == KeyboardListener.KEY_PAGEDOWN) {
@@ -90,15 +96,23 @@ class KeyCommand extends Command {
 			keys.push(27);
 		} else if (keyCode == KeyboardListener.KEY_TAB) {
 			keys.push(9);
-		} else if (keyChar != 0) {
+		} else if (keyChar != 0 && ! ignoreKeyChar(keyChar, keyCode)) {
 			keys.push(keyChar);
-			entry.setBeforeCursor(entry.getBeforeCursor() + keyChar);
+			if (predict)
+				entry.setBeforeCursor(entry.getBeforeCursor() + keyChar);
+		} else {
+			// unknown key, remove any modifiers we already added
+			keys = IntArray.create();
 		}
 		
 		predictedEntryContent = entry.getContent();
 		predictedEntryPos = entry.getCursorPos();
 		
 		js = js(keys);
+	}
+	
+	private static boolean ignoreKeyChar(char keyChar, char keyCode) {
+		return keyChar == 224 && keyCode == 224; // this happens when pressing shift + alt
 	}
 	
 	@Override
