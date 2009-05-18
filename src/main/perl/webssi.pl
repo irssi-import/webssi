@@ -23,8 +23,13 @@ sub new_session {
 
 sub remove_session($) {
 	my ($session) = @_;
+	$session->{removed} = 1;
 	delete $sessions{$session->{'id'}};
 	clear_session_bookmarks($session);
+}
+
+sub sessions() {
+	return values(%sessions);
 }
 
 ########## HTTP ##########
@@ -284,6 +289,9 @@ refresh_daemon(1);
 
 sub add_event($$) {
 	my ($session, $event) = @_;
+	
+	return if ($session->{removed}); # session just got removed while something on the stack was still using it; just ignore it
+	
 	my %event_copy = %$event;
 	$session->{'last_event_id'} = defined($session->{'last_event_id'}) ? ($session->{'last_event_id'} + 1) : 1;
 	$event_copy{'i'} = $session->{'last_event_id'};
@@ -293,6 +301,7 @@ sub add_event($$) {
 		if (time() - $session->{waiting_on_client_since} > 60) {
 			remove_session($session);
 			Irssi::print('Webssi: Session ' . $session->{'id'} . ' expired');
+			return;
 		}
 	} elsif (! $session->{pending_client}) {
 		$session->{waiting_on_client_since} = time();
@@ -304,7 +313,7 @@ sub add_event($$) {
 # adds event to all logged in sessions
 sub add_event_all($) {
 	my ($event) = @_;
-	for my $session (values(%sessions)) {
+	for my $session (sessions()) {
 		add_event($session, $event);
 	}
 }
@@ -312,7 +321,7 @@ sub add_event_all($) {
 # adds event to every session following the given item
 sub add_event_item_following($$) {
 	my ($item, $event) = @_;
-	for my $session (values(%sessions)) {
+	for my $session (sessions()) {
 		if (is_following_winitem($session, $item)) {
 			add_event($session, $event);
 		} else {
@@ -567,7 +576,7 @@ sub is_following_winitem($$) {
 # make sure every client following this window (or items in it) is up-to-date
 sub update_following_window($) {
 	my ($win) = @_;
-	for my $session (values(%sessions)) {
+	for my $session (sessions()) {
 		if (is_following_window($session, $win)) {
 			resync_window($session, $win);
 		}
@@ -580,7 +589,7 @@ sub update_following_window($) {
 # make sure every client following this window item is up-to-date
 sub update_following_winitem($) {
 	my ($winitem) = @_;
-	for my $session (values(%sessions)) {
+	for my $session (sessions()) {
 		if (is_following_winitem($session, $winitem)) {
 			my $winitem_state = get_or_create_winitem_state($session, $winitem);
 			if (! $winitem_state->{uptodate}) {
@@ -604,7 +613,7 @@ Irssi::signal_add('window destroyed', sub {
 	add_event_all(ev('window remove', {window => window_to_id($win)}));
 	
 #	# remove state of window from all sessions
-#	for my $session (values(%sessions)) {
+#	for my $session (sessions()) {
 #		if (get_win_state($session, $win)) {
 #			delete $session->{windows}->{window_to_id($win)};
 #		}
@@ -614,7 +623,7 @@ Irssi::signal_add('window destroyed', sub {
 Irssi::signal_add('window changed', sub {
 	my ($win, $old) = @_;
 	add_event_all(ev('window changed', {window => window_to_id($win), old => window_to_id($old)}));
-	for my $session (values(%sessions)) {
+	for my $session (sessions()) {
 		update_following_window($win);
 		if ($old) {
 			update_following_window($old);
@@ -633,7 +642,7 @@ Irssi::signal_add('window item remove', sub {
 	add_event_all(ev_window_item('window item remove', $window, $item, {}));
 	
 	# remove state of item from all sessions
-	for my $session (values(%sessions)) {
+	for my $session (sessions()) {
 		if (get_winitem_state($session, $item)) {
 			delete $session->{items}->{item_to_id($item)};
 		}
@@ -722,7 +731,7 @@ sub sig_print_text {
 	}
 	$ignore_printing++;
 	
-	for my $session (values(%sessions)) {
+	for my $session (sessions()) {
 		if (is_following_window($session, $dest->{window})) {
 			update_text($session, $dest->{window});
 		}
@@ -883,7 +892,7 @@ Irssi::command_bind('webssi', sub {
 });
 
 Irssi::command_bind('webssi reset', sub {
-	foreach my $session (values(%sessions)) {
+	foreach my $session (sessions()) {
 		remove_session($session);
 	}
 	refresh_daemon(1);
@@ -906,7 +915,7 @@ Irssi::command_bind('webssi status', sub {
 	}
 	if (keys(%sessions)) {
 		Irssi::print(' Sessions:');
-		for my $session (values(%sessions)) {
+		for my $session (sessions()) {
 			my $waiting = $session->{waiting_on_client_since} ? (time() - $session->{waiting_on_client_since}) : 0;
 			Irssi::print('  From ' . $session->{client_ip} . ' started ' . (time() - $session->{creation_time}). ' sec ago'
 				. ($waiting ? (', waiting on client since '. $waiting . ' sec ago') : '')
