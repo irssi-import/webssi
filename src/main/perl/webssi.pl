@@ -221,8 +221,8 @@ sub send_response_later($) {
 		return;
 	}
 	$session->{response_scheduled} = 1;
+	# note: not using the execute_later queue here, because commands in that queue should still be execute before this one
 	Irssi::timeout_add_once(50, \&send_response_now, $session);
-	#debug("send_response_later: " . scalar(@{$session->{events}}) . " events waiting");
 }
 
 sub send_response_now($) {
@@ -284,6 +284,26 @@ sub send_authorization_required($) {
 Irssi::signal_add('setup changed', \&refresh_daemon);
 
 refresh_daemon(1);
+
+########## EXECUTE QUEUE ##########
+my @execute_queue;
+
+# executes the given sub a little later, after currently processing events are done.
+sub execute_later($) {
+	my ($closure) = @_;
+	if (scalar(@execute_queue) == 0) {
+		Irssi::timeout_add_once(50, \&execute_queue_now, undef);
+	}
+	push @execute_queue, $closure;
+}
+
+sub execute_queue_now() {
+	my @executing = @execute_queue;
+	@execute_queue = ();
+	for my $closure (@executing) {
+		&$closure();
+	}
+}
 
 ########## EVENTS ##########
 
@@ -518,7 +538,7 @@ sub add_init_events($) {
 # called when the session starts following the window (again)
 sub resync_window($$) {
 	my ($session, $win) = @_;
-	update_text($session, $win);
+	update_text_later($session, $win);
 }
 
 # re-send the full details (nicklist) of the item to the session
@@ -733,7 +753,7 @@ sub sig_print_text {
 	
 	for my $session (sessions()) {
 		if (is_following_window($session, $dest->{window})) {
-			update_text($session, $dest->{window});
+			update_text_later($session, $dest->{window});
 		}
 	}
 #	#add_event_all(ev_text($dest->{'window'}, text_to_html($text)));
@@ -741,9 +761,26 @@ sub sig_print_text {
 	$ignore_printing--;
 }
 
-# add events for new text in the given window to the clients
-sub update_text {
+# Add events for new text in the given window to the client "soon".
+# The small delay is added to push as much text into one event as possible
+sub update_text_later {
 	my ($session, $window) = @_;
+	execute_later(sub {
+		update_text_now($session, $window);
+	});
+}
+
+# add events for new text in the given window to the clients
+sub update_text_now {
+	my ($session, $window) = @_;
+	
+	# if in the short time we delayed before actually updating the window,
+	# we already stopped following it (for example /eval window next;window next)
+	if (! is_following_window($session, $window)) {
+		return; # don't update
+	}
+	
+	my $html = '';
 
 	my $view = $window->view;
 	
@@ -757,11 +794,14 @@ sub update_text {
 	
 	while ($line) {
 		my $text = $line->get_text(1);
-		add_event($session, ev_text($window, text_to_html($text)));
+		$html .= text_to_html($text);
 		$line = $line->next;
 	}
 	
-	$view->set_bookmark_bottom('webssi_' . $session->{id});
+	if ($html ne '') {
+		add_event($session, ev_text($window, $html));
+		$view->set_bookmark_bottom('webssi_' . $session->{id});
+	}
 }
 
 # remove all bookmarks added for the session
@@ -805,6 +845,7 @@ Irssi::signal_add_last('gui key pressed', sub {
 });
 
 sub before_send_response() {
+	execute_queue_now(); # make sure the queue is empty before we're sending a response
 	update_entry();
 }
 
