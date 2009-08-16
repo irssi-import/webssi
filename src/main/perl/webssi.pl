@@ -7,7 +7,7 @@ use IO::Socket::SSL;
 use POSIX qw(errno_h BUFSIZ);
 
 use Irssi;
-#use Irssi::TextUI;
+eval "use Irssi::TextUI;"; # just to make my editor (Eclipse EPIC plugin) happy
 
 ########## SESSIONS ##########
 
