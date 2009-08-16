@@ -1,9 +1,10 @@
 use strict;
 use JSON;
-use HTTP::Daemon::SSL;
-use HTTP::Daemon;
 use HTTP::Response;
-use Data::Dumper;
+use HTTP::Parser;
+use IO::Socket;
+use IO::Socket::SSL;
+use POSIX qw(errno_h BUFSIZ);
 
 use Irssi;
 #use Irssi::TextUI;
@@ -32,7 +33,7 @@ sub sessions() {
 	return values(%sessions);
 }
 
-########## HTTP ##########
+########## IO ##########
 
 Irssi::settings_add_str('webssi', 'webssi_password', '');
 Irssi::settings_add_int('webssi', 'webssi_http_port', -1);
@@ -41,16 +42,18 @@ Irssi::settings_add_str('webssi', 'webssi_https_key_file', Irssi::get_irssi_dir(
 Irssi::settings_add_str('webssi', 'webssi_https_cert_file', Irssi::get_irssi_dir()."/webssi-cert.pem");
 
 my ($settings_http_port, $settings_https_port, $settings_https_key_file, $settings_https_cert_file, $settings_password);
-my ($http_daemon, $https_daemon);
+my ($http_listen_socket, $https_listen_socket);
+
+my %connections;
 
 # Called when loading, or when the settings have changed
-# (re)starts the http and/or https daemon if forced or if relevant settings have changed
-sub refresh_daemon {
+# (re)starts the http and/or https listening socket if forced or if relevant settings have changed
+sub refresh_servers {
 	my ($force) = @_;
 	
 	if ($force || $settings_password ne Irssi::settings_get_str('webssi_password')) {
 		if (Irssi::settings_get_str('webssi_password') eq '') {
-			# if the password previously wasn't set, force start of daemon even when other settings haven't changed
+			# if the password previously wasn't set, force start of server even when other settings haven't changed
 			$force = 1;
 		}
 		$settings_password = Irssi::settings_get_str('webssi_password');
@@ -60,25 +63,29 @@ sub refresh_daemon {
 	}
 	
 	if ($force || $settings_http_port != Irssi::settings_get_int('webssi_http_port')) {
-		if ($http_daemon) {
-			Irssi::print('Stopping listening on ' . $http_daemon->url);
-			$http_daemon->close();
+		if ($http_listen_socket) {
+			Irssi::print("Stopping Webssi HTTP server on port $settings_http_port");
+			$http_listen_socket->close();
+			$http_listen_socket = undef;
 		}
 		
 		$settings_http_port = Irssi::settings_get_int('webssi_http_port');
 		
 		if ($settings_http_port > 0 && $settings_password ne '') {
-			$http_daemon = HTTP::Daemon->new(
+			$http_listen_socket = IO::Socket::INET->new(
+				Proto => 'tcp',
 				LocalPort => $settings_http_port,
+				Listen => 4,
 				Reuse => 1,
 				Blocking => 0,
 				LocalAddr => "127.0.0.1"
 			);
-			if (! $http_daemon) {
-				Irssi::print("Failed to start HTTP server: " . $!);
+				
+			if (! $http_listen_socket) {
+				Irssi::print("Failed to start Webssi HTTP server: " . $!);
 			} else {
-				Irssi::print('Webssi listening at: ' . $http_daemon->url . ' (for security reasons http can only be used from localhost)');
-				Irssi::input_add(fileno($http_daemon), INPUT_READ, \&handle_http_connection, 0);
+				Irssi::print("Webssi HTTP server listening on port $settings_http_port (for security reasons http can only be used from localhost)");
+				Irssi::input_add(fileno($http_listen_socket), INPUT_READ, \&handle_http_connection, 0);
 			}
 		}
 	}
@@ -86,9 +93,10 @@ sub refresh_daemon {
 	if ($force || $settings_https_port != Irssi::settings_get_int('webssi_https_port')
 			|| $settings_https_key_file ne Irssi::settings_get_str('webssi_https_key_file')
 			|| $settings_https_cert_file ne Irssi::settings_get_str('webssi_https_cert_file')) {
-		if ($https_daemon) {
-			Irssi::print('Stopping listening on ' . $https_daemon->url);
-			$https_daemon->close();
+		if ($https_listen_socket) {
+			Irssi::print("Stopping Webssi HTTPS server on port $settings_https_port");
+			$https_listen_socket->close();
+			$https_listen_socket = undef;
 		}
 		
 		$settings_https_port = Irssi::settings_get_int('webssi_https_port');
@@ -107,18 +115,18 @@ sub refresh_daemon {
 					. " If you are careful/paranoid, you can compare the fingerprint shown in your browser to the output of:\n"
 					. "   openssl x509 -noout -in $settings_https_cert_file -fingerprint");
 			} else {
-				$https_daemon = HTTP::Daemon::SSL->new(
+				$https_listen_socket = IO::Socket::INET->new(
+					Proto => 'tcp',
 					LocalPort => $settings_https_port,
+					Listen => 4,
 					Reuse => 1,
-					Blocking => 0,
-					SSL_key_file => $settings_https_key_file,
-					SSL_cert_file => $settings_https_cert_file
+					Blocking => 0
 				);
-				if (! $https_daemon) {
-					Irssi::print("Failed to start HTTPS server: " . $!);
+				if (! $https_listen_socket) {
+					Irssi::print("Failed to start Webssi HTTPS server: " . $!);
 				} else {
-					Irssi::print('Webssi listening at: ' . $https_daemon->url);
-					Irssi::input_add(fileno($https_daemon), INPUT_READ, \&handle_https_connection, 0);
+					Irssi::print("Webssi HTTPS server listening on port $settings_https_port");
+					Irssi::input_add(fileno($https_listen_socket), INPUT_READ, \&handle_https_connection, 0);
 				}
 			}
 		}
@@ -129,42 +137,203 @@ sub refresh_daemon {
 	}
 }
 
-my %tag;
-
 sub handle_http_connection {
-	handle_connection($http_daemon);
+	my $connection = handle_connection($http_listen_socket);
+	if ($connection) {
+		connection_watch_read($connection);
+	}
 }
 
 sub handle_https_connection {
-	handle_connection($https_daemon);
+	my $connection = handle_connection($https_listen_socket);
+	if ($connection) {
+		IO::Socket::SSL->start_SSL($connection->{socket},
+			SSL_startHandshake => 0, # don't do a blocking handshake
+			SSL_server => 1,
+			SSL_key_file => $settings_https_key_file,
+			SSL_cert_file => $settings_https_cert_file
+		);
+		accept_ssl($connection);
+	}
 }
 
 sub handle_connection($) {
-	my ($daemon) = @_;
-	my $client = $daemon->accept;
-	if ($client) {
-		$tag{$client} = Irssi::input_add(fileno($client), INPUT_READ, \&handle_request, $client);
+	my ($listen_socket) = @_;
+	my $socket = $listen_socket->accept;
+	if ($socket) {
+		$socket->blocking(0);
+		$socket->autoflush();
+		my $connection = new_connection($socket);
+		return $connection;
+	}
+	return undef;
+}
+
+sub new_connection($) {
+	my ($socket) = @_;
+	return {
+		socket => $socket,
+		parser => HTTP::Parser->new()
+	};
+}
+
+# do the ssl handshake on the connection, and start listening for http requests when done.
+# the handshake doesn't complete immediately, this sub calls itself again using Irssi::input_add until the handshake is done
+sub accept_ssl {
+	my ($connection) = @_;
+	
+	if ($connection->{watch_accepting_ssl_tag}) {
+		Irssi::input_remove($connection->{watch_accepting_ssl_tag});
+		delete $connection->{watch_accepting_ssl_tag};
+	}
+	
+	my $rv = $connection->{socket}->accept_SSL();
+	
+	if ($rv) { # done
+		connection_watch_read($connection);
+	} else { # failed
+		if ($SSL_ERROR == SSL_WANT_READ || $SSL_ERROR == SSL_WANT_WRITE) { # need to wait on read or write for ssl handshake
+			$connection->{watch_accepting_ssl_tag} = Irssi::input_add(
+				fileno($connection->{socket}),
+				$SSL_ERROR == SSL_WANT_READ ? INPUT_READ : INPUT_WRITE,
+				\&accept_ssl,
+				$connection
+			);
+		}
+	}
+}
+
+sub connection_watch_read($) {
+	my ($connection) = @_;
+	$connection->{watch_read_tag} = Irssi::input_add(fileno($connection->{socket}), INPUT_READ, \&handle_can_read, $connection);
+}
+
+sub connection_unwatch_read($) {
+	my ($connection) = @_;
+	Irssi::input_remove($connection->{watch_read_tag});
+	delete $connection->{watch_read_tag};
+}
+
+sub connection_watch_write($) {
+	my ($connection) = @_;
+	$connection->{watch_write_tag} = Irssi::input_add(fileno($connection->{socket}), INPUT_WRITE, \&handle_can_write, $connection);
+}
+
+sub connection_unwatch_write($) {
+	my ($connection) = @_;
+	Irssi::input_remove($connection->{watch_write_tag});
+	delete $connection->{watch_write_tag};
+}
+
+# callback for Irssi::input_add when data can be read from a socket
+sub handle_can_read($) {
+	my ($connection) = @_;
+	my $data;
+	my $read = $connection->{socket}->read($data, BUFSIZ);
+	
+	if (defined($read) && length($data)) {
+		handle_input($connection, $data);
+	} else {
+		unless(defined($read)) {
+			if ($! == EINTR || $! == EAGAIN || $! == EWOULDBLOCK) {
+				return;
+			} elsif ($! == ECONNRESET) {
+				connection_unwatch_read($connection);
+				debug("handle_can_read: connection closed");
+				if (defined($connection->{output_buffer})) {
+					# let the writing finish before closing the connection
+					$connection->{close_when_write_ready} = 1;
+				} else {
+					connection_close($connection);
+				}
+			} else {
+				print_warn ("Error reading from socket: $!");
+				connection_close($connection);
+			}
+		}
+	}
+}
+
+# write the data to the connection. Buffers data and adds watcher for when it can be written.
+sub write_raw($$) {
+	my ($connection, $data) = @_;
+	if (defined($connection->{output_buffer})) {
+		$connection->{output_buffer} .= $data;
+	} else {
+		$connection->{output_buffer} = $data;
+		connection_watch_write($connection);
+		handle_can_write($connection);
+	}
+}
+
+# callback for Irssi::input_add when data can be written to a socket
+sub handle_can_write {
+	my ($connection) = @_;
+	
+	my $written =  $connection->{socket}->syswrite($connection->{output_buffer}, length($connection->{output_buffer}));
+	if (defined($written)) { # if write successful
+		if ($written == length($connection->{output_buffer})) { # everything has been written
+			delete $connection->{output_buffer};
+			connection_unwatch_write($connection);
+			if ($connection->{close_when_write_ready}) {
+				connection_close($connection);
+			}
+		} else {
+			# remove what we wrote from output buffer
+			substr($connection->{output_buffer}, 0, $written) = '';
+		}
+	} else { # if we couldn't write
+		if ($! == EWOULDBLOCK || $! == EINTR || $! == EAGAIN) {
+			return; # ok, ignore it
+		}
+		
+		print_warn("handle_can_write: write error: $!");
+		connection_close($connection);
+	}
+}
+
+# closes the given connection, and cleans up watchers
+sub connection_close($) {
+	my ($connection) = @_;
+	$connection->{socket}->close();
+	delete $connections{$connection->{socket}};
+	if ($connection->{watch_read_tag}) {
+		connection_unwatch_read($connection);
+	}
+	if ($connection->{watch_write_tag}) {
+		connection_unwatch_write($connection);
+	}
+}
+
+########## HTTP ##########
+
+sub handle_input($$) {
+	my ($connection, $data) = @_;
+	
+	while (length($data) && $connection->{parser}->add($data) == 0) { # request completely parsed
+		my $request = $connection->{parser}->request();
+		#debug("handle_can_read: request: $request");
+	
+		handle_request($connection, $request);
+	
+		# start a new parser for the next request
+		$connection->{parser} = HTTP::Parser->new();
+		
+		# push extra data that wasn't part of this request to the next parser
+		$data = $connection->{parser}->data();
 	}
 }
 
 sub handle_request($) {
-	my ($client) = @_;
+	my ($connection, $request) = @_;
+	my $client = $connection->{socket};
 	#debug('Getting request from ' . $client);	
-	my $request = $client->get_request;
-	if (!$request) {
-		#debug("closing connection to $client");
-		# TODO if it's a pending_client of a connection, abort that one
-		Irssi::input_remove($tag{$client});
-		$client->close;
-		delete $tag{$client};
-		return;
-	}
 
 	my $url = $request->url->path;
 	#debug('Request: method:' . $request->method . " url:\"$url\"");
 	
 	if (! check_request_authorization($request)) {
-		send_authorization_required($client);
+		send_authorization_required($connection);
 	} elsif ($url eq '/events.json') {
 		my ($sessionid, $events_ack, $commands) = split / /, $request->content(), 3;
 		
@@ -178,22 +347,22 @@ sub handle_request($) {
 			if (!$session) {
 				my $response = HTTP::Response->new(200, undef, undef, "[{\"type\":\"unknown session\", \"i\": -1}]");
 				print_warn("unknown session $sessionid");
-				$client->send_response($response);
+				send_response_http($connection, $response);
 				return;
 			}
 		}
 		
 		$session->{waiting_on_client_since} = undef; # not waiting anymore, we got one
 		
-		if ($session->{pending_client}) {
+		if ($session->{pending_connection}) {
 			#debug("dropping older request");
-			my $client = $session->{pending_client};
+			my $pending_connection = $session->{pending_connection};
 			my $response = HTTP::Response->new(200, undef, undef, "[{\"type\":\"request superseded\", \"i\": -1}]");
-			$client->send_response($response);
-			delete $session->{pending_client};
+			send_response_http($pending_connection, $response);
+			delete $session->{pending_connection};
 		}
 		
-		$session->{pending_client} = $client;
+		$session->{pending_connection} = $connection;
 		
 		events_ack($session, $events_ack);
 		
@@ -207,17 +376,46 @@ sub handle_request($) {
 		}
 		my $filename = Irssi::get_irssi_dir() . '/webssi' . $url;
 		debug("Returning file $filename");
-		$client->send_file_response($filename);
+		send_file_response($connection, $filename);
 	} else {
 		debug('403 bad chars');
 		my $response = HTTP::Response->new(403, undef, undef, 'URL contains characters that are not allowed.');
-		$client->send_response($response);
+		send_response_http($connection, $response);
 	}
+}
+
+sub send_file_response($$) {
+	my ($connection, $filename) = @_;
+	
+	# all the files we're serving are relatively small. So just read it completely into memory and send it
+	#local $/=undef; # locally clear $/ so <> reads the whole file at once
+	if (!open(FILE, $filename)) {
+		my $response = HTTP::Response->new(404, undef, undef, 'File not found');
+		send_response_http($connection, $response);
+		return;
+	}
+	binmode FILE;
+	my $content = join("", <FILE>);
+	close FILE;
+	
+	my $response = HTTP::Response->new(200, undef, undef, $content);
+	send_response_http($connection, $response);
+}
+
+sub send_response_http($$) {
+	my ($connection, $response) = @_;
+	
+	$response->protocol("HTTP/1.1");
+	$response->header("Server" => "Webssi");
+	my $content = $response->content();
+	$response->header("Content-Length" => length($content));
+
+	write_raw($connection, $response->as_string() . "\n");
 }
 
 sub send_response_later($) {
 	my ($session) = @_;
-	if ($session->{response_scheduled} || ! $session->{pending_client} || scalar(@{$session->{events}}) == 0) {
+	if ($session->{response_scheduled} || ! $session->{pending_connection} || scalar(@{$session->{events}}) == 0) {
 		return;
 	}
 	$session->{response_scheduled} = 1;
@@ -228,9 +426,9 @@ sub send_response_later($) {
 sub send_response_now($) {
 	my ($session) = @_;
 	
-	my $client = $session->{pending_client};
+	my $connection = $session->{pending_connection};
 	
-	if(!$client) {
+	if(!$connection) {
 		die "no connection to send response to";
 	}
 	
@@ -242,9 +440,9 @@ sub send_response_now($) {
 	# send reply
 	my $response = HTTP::Response->new(200, undef, undef, $eventstring);
 	#debug("sending: $eventstring");
-	$client->send_response($response);
+	send_response_http($connection, $response);
 	
-	delete $session->{pending_client};
+	delete $session->{pending_connection};
 	$session->{response_scheduled} = 0;
 }
 
@@ -265,7 +463,7 @@ sub check_request_authorization($) {
 		return 0;
 	}
 	if ($request_password eq $settings_password) {
-		debug("Password ok");
+		#debug("Password ok");
 		return 1;
 	} else {
 		debug("Password not ok");
@@ -274,16 +472,27 @@ sub check_request_authorization($) {
 }
 
 sub send_authorization_required($) {
-	my ($client) = @_;
+	my ($connection) = @_;
 	
 	my $response = HTTP::Response->new(401, "Unauthorized", undef, "Unauthorized\n");
 	$response->header('WWW-Authenticate' => 'Basic realm="Webssi"');
-	$client->send_response($response);
+	send_response_http($connection, $response);
 }
 
-Irssi::signal_add('setup changed', \&refresh_daemon);
+Irssi::signal_add('setup changed', \&refresh_servers);
 
-refresh_daemon(1);
+refresh_servers(1);
+
+sub UNLOAD {
+	if ($http_listen_socket) {
+		$http_listen_socket->close();
+		$http_listen_socket = undef;
+	}
+	if ($https_listen_socket) {
+		$https_listen_socket->close();
+		$https_listen_socket = undef;
+	}
+}
 
 ########## EXECUTE QUEUE ##########
 my @execute_queue;
@@ -936,22 +1145,18 @@ Irssi::command_bind('webssi reset', sub {
 	foreach my $session (sessions()) {
 		remove_session($session);
 	}
-	refresh_daemon(1);
+	refresh_servers(1);
 });
 
 Irssi::command_bind('webssi status', sub {
 	Irssi::print("Webssi status:");
-	my @daemons;
-	if ($http_daemon || $https_daemon) {
-		if ($http_daemon) {
-			push @daemons, $http_daemon->url;
-		}
-		if ($https_daemon) {
-			push @daemons, $https_daemon->url;
-		}
-
-		Irssi::print(' Listening on ' . (join ' and ', @daemons));
-	} else {
+	if ($http_listen_socket) {
+		Irssi::print(" HTTP server listening on $settings_http_port");
+	}
+	if ($https_listen_socket) {
+		Irssi::print(" HTTPS server listening on $settings_https_port");
+	}
+	if (!$http_listen_socket && !$https_listen_socket) {
 		Irssi::print(' Not listening on any port.');
 	}
 	if (keys(%sessions)) {
