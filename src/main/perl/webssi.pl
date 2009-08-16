@@ -199,6 +199,8 @@ sub accept_ssl {
 				\&accept_ssl,
 				$connection
 			);
+		} else {
+			debug("SSL handshake failed");
 		}
 	}
 }
@@ -231,8 +233,13 @@ sub handle_can_read($) {
 	my $data;
 	my $read = $connection->{socket}->read($data, BUFSIZ);
 	
-	if (defined($read) && length($data)) {
-		handle_input($connection, $data);
+	if (defined($read)) {
+		if ($read == 0) {
+			debug("other end closed the connection");
+			connection_close($connection);
+		} else {
+			handle_input($connection, $data);
+		}
 	} else {
 		unless(defined($read)) {
 			if ($! == EINTR || $! == EAGAIN || $! == EWOULDBLOCK) {
@@ -262,7 +269,6 @@ sub write_raw($$) {
 	} else {
 		$connection->{output_buffer} = $data;
 		connection_watch_write($connection);
-		handle_can_write($connection);
 	}
 }
 
@@ -295,7 +301,8 @@ sub handle_can_write {
 # closes the given connection, and cleans up watchers
 sub connection_close($) {
 	my ($connection) = @_;
-	$connection->{socket}->close();
+	debug("closing connection $connection->{socket}");
+	$connection->{socket}->close(SSL_no_shutdown => 1);
 	delete $connections{$connection->{socket}};
 	if ($connection->{watch_read_tag}) {
 		connection_unwatch_read($connection);
