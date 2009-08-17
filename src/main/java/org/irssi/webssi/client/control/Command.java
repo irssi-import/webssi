@@ -40,6 +40,7 @@ abstract class Command {
 	
 	private final JavaScriptObject js;
 	private int id;
+	private boolean noop;
 	
 	Command() {
 		this(null);
@@ -94,5 +95,22 @@ abstract class Command {
 
 	void setId(int id) {
 		this.id = id;
+	}
+	
+	/**
+	 * True if this command didn't do anything, so it does not need to be sent.
+	 */
+	boolean isNoop() {
+		return noop;
+	}
+	
+	/**
+	 * Sets that this command didn't do anything.
+	 * Should be called from execute()
+	 * (if we knew earlier that it was a noop it should not have executed at all,
+	 *  and if we only notice it later, it is too late not to send it)
+	 */
+	void setNoop() {
+		noop = true;
 	}
 }

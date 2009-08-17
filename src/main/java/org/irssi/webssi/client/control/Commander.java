@@ -132,6 +132,13 @@ public class Commander {
 		pendingCommands.add(command);
 		command.setId(commandIdCounter++);
 		command.execute();
+		if (command.isNoop()) { // no need to actually send this command
+			// remove it from the queue again.
+			// Note the add can't be moved after this if() because then the
+			//  order of commands that trigger other commands when executing would be wrong
+			pendingCommands.remove(command);
+			return;
+		}
 		Predictable predictable = command.getPredictable();
 		if (predictable != null && ! predictions.containsKey(predictable)) {
 			predictions.put(predictable, PredictionState.OK);

@@ -103,6 +103,7 @@ class KeyCommand extends Command {
 		} else {
 			// unknown key, remove any modifiers we already added
 			keys = IntArray.create();
+			setNoop();
 		}
 		
 		predictedEntryContent = entry.getContent();
