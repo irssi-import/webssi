@@ -148,6 +148,7 @@ sub handle_http_connection {
 
 sub handle_https_connection {
 	my $connection = handle_connection($https_listen_socket);
+	$connection->{ssl} = 1;
 	if ($connection) {
 		IO::Socket::SSL->start_SSL($connection->{socket},
 			SSL_startHandshake => 0, # don't do a blocking handshake
@@ -256,7 +257,7 @@ sub handle_can_read($) {
 					connection_close($connection);
 				}
 			} else {
-				print_warn ("Error reading from socket: $!");
+				debug("Error reading from socket: $!");
 				connection_close($connection);
 			}
 		}
@@ -295,7 +296,7 @@ sub handle_can_write {
 			return; # ok, ignore it
 		}
 		
-		print_warn("handle_can_write: write error: $!");
+		debug("handle_can_write: write error: $!");
 		connection_close($connection);
 	}
 }
@@ -304,7 +305,11 @@ sub handle_can_write {
 sub connection_close($) {
 	my ($connection) = @_;
 	debug("closing connection $connection->{socket}");
-	$connection->{socket}->close(SSL_no_shutdown => 1);
+	if ($connection->{ssl}) {
+		$connection->{socket}->close(SSL_no_shutdown => 1);
+	} else {
+		$connection->{socket}->close();
+	}
 	delete $connections{$connection->{socket}};
 	if ($connection->{watch_read_tag}) {
 		connection_unwatch_read($connection);
