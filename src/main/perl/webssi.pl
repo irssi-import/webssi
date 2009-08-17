@@ -42,7 +42,7 @@ Irssi::settings_add_str('webssi', 'webssi_https_key_file', Irssi::get_irssi_dir(
 Irssi::settings_add_str('webssi', 'webssi_https_cert_file', Irssi::get_irssi_dir()."/webssi-cert.pem");
 
 my ($settings_http_port, $settings_https_port, $settings_https_key_file, $settings_https_cert_file, $settings_password);
-my ($http_listen_socket, $https_listen_socket);
+my ($http_listen_socket, $https_listen_socket, $http_listen_watch_tag, $https_listen_watch_tag);
 
 my %connections;
 
@@ -67,6 +67,7 @@ sub refresh_servers {
 			Irssi::print("Stopping Webssi HTTP server on port $settings_http_port");
 			$http_listen_socket->close();
 			$http_listen_socket = undef;
+			Irssi::input_remove($http_listen_watch_tag);
 		}
 		
 		$settings_http_port = Irssi::settings_get_int('webssi_http_port');
@@ -85,7 +86,7 @@ sub refresh_servers {
 				Irssi::print("Failed to start Webssi HTTP server: " . $!);
 			} else {
 				Irssi::print("Webssi HTTP server listening on port $settings_http_port (for security reasons http can only be used from localhost)");
-				Irssi::input_add(fileno($http_listen_socket), INPUT_READ, \&handle_http_connection, 0);
+				$http_listen_watch_tag = Irssi::input_add(fileno($http_listen_socket), INPUT_READ, \&handle_http_connection, 0);
 			}
 		}
 	}
@@ -97,6 +98,7 @@ sub refresh_servers {
 			Irssi::print("Stopping Webssi HTTPS server on port $settings_https_port");
 			$https_listen_socket->close();
 			$https_listen_socket = undef;
+			Irssi::input_remove($https_listen_watch_tag);
 		}
 		
 		$settings_https_port = Irssi::settings_get_int('webssi_https_port');
@@ -126,7 +128,7 @@ sub refresh_servers {
 					Irssi::print("Failed to start Webssi HTTPS server: " . $!);
 				} else {
 					Irssi::print("Webssi HTTPS server listening on port $settings_https_port");
-					Irssi::input_add(fileno($https_listen_socket), INPUT_READ, \&handle_https_connection, 0);
+					$https_listen_watch_tag = Irssi::input_add(fileno($https_listen_socket), INPUT_READ, \&handle_https_connection, 0);
 				}
 			}
 		}
