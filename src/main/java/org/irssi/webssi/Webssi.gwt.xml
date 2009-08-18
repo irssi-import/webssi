@@ -20,5 +20,8 @@
     
       <!-- Specify the application specific style sheet.              -->
       <stylesheet src='Webssi.css' />
+      
+      <!-- only needed for unit tests -->
+      <servlet path='/events.json' class='org.irssi.webssi.server.ForwardServlet'/>
 	
 </module>

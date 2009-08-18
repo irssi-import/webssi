@@ -7,12 +7,12 @@
 	<version>0.0.1-SNAPSHOT</version>
 	<inceptionYear>2008</inceptionYear>
 	<name>Webssi</name>
-	<url>http://irssi.org/TODO</url>
+	<url>http://wouter.coekaerts.be/webssi</url>
 	<description>Web interface for irssi</description>
 
 	<properties>
 		<maven.test.skip>true</maven.test.skip>
-		<gwtVersion>1.5.3</gwtVersion>
+		<gwtVersion>1.7.0</gwtVersion>
 	</properties>
 
 	<dependencies>
@@ -28,6 +28,12 @@
 			<version>${gwtVersion}</version>
 			<scope>provided</scope>
 		</dependency>
+		<dependency>
+			<groupId>com.google.gwt</groupId>
+			<artifactId>gwt-servlet</artifactId>
+			<version>${gwtVersion}</version>
+			<scope>compile</scope>
+		</dependency>
 	</dependencies>
 	<build>
 		<defaultGoal>gwt:compile</defaultGoal>
@@ -35,11 +41,11 @@
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>gwt-maven-plugin</artifactId>
-				<version>1.0</version>
+				<version>1.1</version>
 				<executions>
 					<execution>
 						<configuration>
-							<module>org.irssi.webssi.Webssi</module>
+							<runTarget>org.irssi.webssi.Webssi/Webssi.html</runTarget>
 						</configuration>
 						<goals>
 							<goal>compile</goal>
@@ -54,10 +60,10 @@
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>gwt-maven-plugin</artifactId>
+				<version>1.1</version>
 				<configuration>
 					<includes>**/*Test.java</includes>
 				</configuration>
-				<version>1.0</version>
 				<executions>
 					<execution>
 						<goals>
@@ -65,6 +71,15 @@
 						</goals>
 					</execution>
 				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-war-plugin</artifactId>
+				<version>2.0.2</version>
+				<configuration>
+					<warSourceDirectory>war</warSourceDirectory>
+					<webXml>war/WEB-INF/web.xml</webXml>
+				</configuration>
 			</plugin>
 
 			<plugin>

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <web-app>
-
 	<servlet>
 		<servlet-name>shell</servlet-name>
 		<servlet-class>com.google.gwt.dev.shell.GWTShellServlet</servlet-class>
@@ -15,10 +14,9 @@
 		<servlet-name>shell</servlet-name>
 		<url-pattern>/*</url-pattern>
 	</servlet-mapping>
-	
+
 	<servlet-mapping>
 		<servlet-name>forward</servlet-name>
 		<url-pattern>/events.json</url-pattern>
 	</servlet-mapping>
-
 </web-app>
