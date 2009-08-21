@@ -1,13 +1,11 @@
 package org.irssi.webssi.client;
 
+import static org.irssi.webssi.client.model.TestEntryListener.CONTENT_CHANGED;
 import static org.irssi.webssi.client.model.TestGroupListener.WIN;
 import static org.irssi.webssi.client.model.TestWindowListener.WINDOW_ITEM_CHANGED;
 import static org.irssi.webssi.client.model.TestWindowListener.WINDOW_NAME_CHANGED;
 import static org.irssi.webssi.client.model.TestWindowManagerListener.WINDOW_CHANGED;
-import static org.irssi.webssi.client.model.TestEntryListener.CONTENT_CHANGED;
 
-import org.irssi.webssi.client.Webssi;
-import org.irssi.webssi.client.Link;
 import org.irssi.webssi.client.events.EventHandler;
 import org.irssi.webssi.client.events.JsonEvent;
 import org.irssi.webssi.client.expect.Expectable;
@@ -20,7 +18,7 @@ import org.irssi.webssi.client.model.Model;
 import org.irssi.webssi.client.model.Window;
 import org.irssi.webssi.client.model.WindowItem;
 
-import com.google.gwt.user.client.ui.KeyboardListener;
+import com.google.gwt.event.dom.client.KeyCodes;
 
 /**
  * Tests some scenarios.
@@ -264,16 +262,17 @@ public class WebssiTest extends AbstractExpectTest {
 	}
 	
 	public void testEntry() {
+		final DummyKeyEvent dummyKeyEvent = new DummyKeyEvent();
 		delayTestFinish();
 		expectSession.beginning()
 		.followedBy(init())
 		.react(new SimpleReaction() {
 			public void run() {
 				listen(model.getEntry());
-				webssi.getController().keyPressed('A', 'a', 0);
-				webssi.getController().keyPressed('B', 'b', 0);
-				webssi.getController().keyPressed('C', 'c', 0);
-				webssi.getController().keyPressed((char)KeyboardListener.KEY_ENTER, '\0', 0);
+				webssi.getController().keyPressed('A', 'a', dummyKeyEvent);
+				webssi.getController().keyPressed('B', 'b', dummyKeyEvent);
+				webssi.getController().keyPressed('C', 'c', dummyKeyEvent);
+				webssi.getController().keyPressed(KeyCodes.KEY_ENTER, '\0', dummyKeyEvent);
 			}
 		}).followedBy(CONTENT_CHANGED).withParam("a")
 		.followedBy(CONTENT_CHANGED).withParam("ab")

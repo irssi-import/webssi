@@ -5,7 +5,8 @@ import org.irssi.webssi.client.events.JsonEvent;
 import org.irssi.webssi.client.model.Entry;
 
 import com.google.gwt.core.client.JavaScriptObject;
-import com.google.gwt.user.client.ui.KeyboardListener;
+import com.google.gwt.event.dom.client.KeyCodes;
+import com.google.gwt.event.dom.client.KeyEvent;
 
 /**
  * Command executed when the user presses a key.
@@ -14,9 +15,9 @@ class KeyCommand extends Command {
 	private static Predictable ENTRY_PREDICTABLE = new Predictable("entry changed");
 	
 	private final Entry entry;
-	private final char keyCode;
-	private final char keyChar;
-	private final int modifiers;
+	private final int keyCode;
+	private final char charCode;
+	private final KeyEvent<?> event;
 	
 	private String origEntryContent;
 	private int origEntryPos;
@@ -30,12 +31,12 @@ class KeyCommand extends Command {
 	
 	private JavaScriptObject js;
 	
-	KeyCommand(Entry entry, char keyCode, char keyChar, int modifiers) {
+	KeyCommand(Entry entry, int keyCode, char charCode, KeyEvent<?> event) {
 		super();
 		this.entry = entry;
 		this.keyCode = keyCode;
-		this.keyChar = keyChar;
-		this.modifiers = modifiers;
+		this.charCode = charCode;
+		this.event = event;
 	}
 	
 	@Override
@@ -46,60 +47,60 @@ class KeyCommand extends Command {
 		
 		IntArray keys = IntArray.create();
 		
-		if ((modifiers & KeyboardListener.MODIFIER_ALT) != 0) {
+		if (event.isAltKeyDown()) {
 			keys.push(27);
 			predict = false; // we shouldn't try to predict what this combo does
 		}
 		
-		if ((modifiers & KeyboardListener.MODIFIER_CTRL) != 0 && keyCode >= 'A' && keyCode <= 'Z') {
+		if (event.isControlKeyDown() && keyCode >= 'A' && keyCode <= 'Z') {
 			keys.push(keyCode - 'A' + 1);
-		} else if (keyCode == KeyboardListener.KEY_ENTER) {
+		} else if (keyCode == KeyCodes.KEY_ENTER) {
 			keys.push(10);
 			if (predict)
 				entry.setContent("", 0);
-		} else if (keyCode == KeyboardListener.KEY_BACKSPACE) {
+		} else if (keyCode == KeyCodes.KEY_BACKSPACE) {
 			keys.push(127);
 			if (predict && entry.getCursorPos() != 0) {
 				String beforeCursor = entry.getBeforeCursor();
 				entry.setBeforeCursor(beforeCursor.substring(0, beforeCursor.length() - 1));
 			}
-		} else if (keyCode == KeyboardListener.KEY_DELETE) {
+		} else if (keyCode == KeyCodes.KEY_DELETE) {
 			keys.push(27, 91, 51, 126);
 			if (predict && entry.getCursorPos() != entry.getContent().length()) {
 				entry.setAfterCursor(entry.getAfterCursor().substring(1));
 			}
-		} else if (keyCode == KeyboardListener.KEY_LEFT) {
+		} else if (keyCode == KeyCodes.KEY_LEFT) {
 			keys.push(27, 91, 68);
 			if (predict && entry.getCursorPos() != 0)
 				entry.setCursorPos(entry.getCursorPos() - 1);
-		} else if (keyCode == KeyboardListener.KEY_RIGHT) {
+		} else if (keyCode == KeyCodes.KEY_RIGHT) {
 			keys.push(27, 91, 67);
 			if (predict && entry.getCursorPos() != entry.getContent().length())
 				entry.setCursorPos(entry.getCursorPos() + 1);
-		} else if (keyCode == KeyboardListener.KEY_UP) {
+		} else if (keyCode == KeyCodes.KEY_UP) {
 			keys.push(27, 91, 65);
-		} else if (keyCode == KeyboardListener.KEY_DOWN) {
+		} else if (keyCode == KeyCodes.KEY_DOWN) {
 			keys.push(27, 91, 66);
-		} else if (keyCode == KeyboardListener.KEY_HOME) {
+		} else if (keyCode == KeyCodes.KEY_HOME) {
 			keys.push(27, 91, 72);
 			if (predict)
 				entry.setCursorPos(0);
-		} else if (keyCode == KeyboardListener.KEY_END) {
+		} else if (keyCode == KeyCodes.KEY_END) {
 			keys.push(27, 91, 70);
 			if (predict)
 				entry.setCursorPos(entry.getContent().length());
-		} else if (keyCode == KeyboardListener.KEY_PAGEUP) {
+		} else if (keyCode == KeyCodes.KEY_PAGEUP) {
 			keys.push(27, 91, 53, 126);
-		} else if (keyCode == KeyboardListener.KEY_PAGEDOWN) {
+		} else if (keyCode == KeyCodes.KEY_PAGEDOWN) {
 			keys.push(27, 91, 54, 126);
-		} else if (keyCode == KeyboardListener.KEY_ESCAPE) {
+		} else if (keyCode == KeyCodes.KEY_ESCAPE) {
 			keys.push(27);
-		} else if (keyCode == KeyboardListener.KEY_TAB) {
+		} else if (keyCode == KeyCodes.KEY_TAB) {
 			keys.push(9);
-		} else if (keyChar != 0 && ! ignoreKeyChar(keyChar, keyCode)) {
-			keys.push(keyChar);
+		} else if (charCode != 0 && ! ignoreKey(charCode, keyCode)) {
+			keys.push(charCode);
 			if (predict)
-				entry.setBeforeCursor(entry.getBeforeCursor() + keyChar);
+				entry.setBeforeCursor(entry.getBeforeCursor() + charCode);
 		} else {
 			// unknown key, remove any modifiers we already added
 			keys = IntArray.create();
@@ -112,8 +113,8 @@ class KeyCommand extends Command {
 		js = js(keys);
 	}
 	
-	private static boolean ignoreKeyChar(char keyChar, char keyCode) {
-		return keyChar == 224 && keyCode == 224; // this happens when pressing shift + alt
+	private static boolean ignoreKey(char charCode, int keyCode) {
+		return charCode == 224 && keyCode == 224; // this happens when pressing shift + alt
 	}
 	
 	@Override
@@ -147,6 +148,7 @@ class KeyCommand extends Command {
 	}
 	
 	private static class IntArray extends JavaScriptObject {
+		@SuppressWarnings("unused") // all JavaScriptObjects need a protected constructor
 		protected IntArray() {}
 		
 		private static native IntArray create() /*-{

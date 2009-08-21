@@ -4,10 +4,11 @@ import java.util.ArrayList;
 
 import org.irssi.webssi.client.model.Group;
 
+import com.google.gwt.event.logical.shared.SelectionEvent;
+import com.google.gwt.event.logical.shared.SelectionHandler;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.Tree;
 import com.google.gwt.user.client.ui.TreeItem;
-import com.google.gwt.user.client.ui.TreeListener;
 
 /**
  * Shows a hierarchy of {@link Group}s in a tree.
@@ -171,16 +172,13 @@ class GroupTreeView extends Composite {
 		}
 	}
 	
-	private final TreeListener treeListener = new TreeListener() {
-		public void onTreeItemSelected(TreeItem item) {
+	private final SelectionHandler<TreeItem> selectionHandler = new SelectionHandler<TreeItem>() {
+		public void onSelection(SelectionEvent<TreeItem> event) {
+			TreeItem item = event.getSelectedItem();
 			if (selectedItem != null && selectedItem != item)
 				selectedItem.setSelected(false);
 			selectedItem = item;
 			((TreeItemUserObject<?>)item.getUserObject()).onTreeItemSelected();
-		}
-
-		public void onTreeItemStateChanged(TreeItem item) {
-			// do nothing
 		}
 	};
 	
@@ -190,7 +188,7 @@ class GroupTreeView extends Composite {
 	GroupTreeView() {
 		tree = new Tree();
 		initWidget(tree);
-		tree.addTreeListener(treeListener);
+		tree.addSelectionHandler(selectionHandler);
 	}
 	
 	protected <T extends Comparable<T>> void init(Group<T> roots, Level<T, ?> topLevel) {

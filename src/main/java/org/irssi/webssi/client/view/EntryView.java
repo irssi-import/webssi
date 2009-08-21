@@ -4,13 +4,18 @@ import org.irssi.webssi.client.control.Controller;
 import org.irssi.webssi.client.model.Entry;
 import org.irssi.webssi.client.model.Model;
 
+import com.google.gwt.event.dom.client.KeyDownEvent;
+import com.google.gwt.event.dom.client.KeyDownHandler;
+import com.google.gwt.event.dom.client.KeyEvent;
+import com.google.gwt.event.dom.client.KeyPressEvent;
+import com.google.gwt.event.dom.client.KeyPressHandler;
+import com.google.gwt.event.dom.client.KeyUpEvent;
+import com.google.gwt.event.dom.client.KeyUpHandler;
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.DeferredCommand;
 import com.google.gwt.user.client.Element;
 import com.google.gwt.user.client.ui.Composite;
-import com.google.gwt.user.client.ui.KeyboardListener;
 import com.google.gwt.user.client.ui.TextBox;
-import com.google.gwt.user.client.ui.Widget;
 
 public class EntryView extends Composite implements Entry.Listener {
 	private final TextBox textBox;
@@ -26,7 +31,7 @@ public class EntryView extends Composite implements Entry.Listener {
 	 * Key code of the last received onKeyDown.
 	 * This is remembered because otherwise in onKeyPress we can't distinguish between some keys
 	 */
-	private char downKeyCode;
+	private int downKeyCode;
 	
 	public EntryView(final Model model) {
 		this.entry = model.getEntry();
@@ -36,35 +41,40 @@ public class EntryView extends Composite implements Entry.Listener {
 		
 		blockDefaultTab(textBox.getElement());
 		
-		textBox.addKeyboardListener(new KeyboardListener() {
-			public void onKeyDown(Widget sender, char keyCode, int modifiers) {
-				logKey("down", keyCode, modifiers);
-				downKeyCode = keyCode;
+		textBox.addKeyDownHandler(new KeyDownHandler() {
+			public void onKeyDown(KeyDownEvent event) {
+				logKey(event, event.getNativeKeyCode());
+				downKeyCode = event.getNativeKeyCode();
 				lastKeyEventWasKeyPress = false;
-			}
-
-			public void onKeyPress(Widget sender, char keyCode, int modifiers) {
-				logKey("press", keyCode, modifiers);
-				controller.keyPressed(downKeyCode, keyCode, modifiers);
-				lastKeyEventWasKeyPress = true;
-//				refresh();
-			}
-
-			public void onKeyUp(Widget sender, char keyCode, int modifiers) {
-				logKey("up", keyCode, modifiers);
-				if (! lastKeyEventWasKeyPress) {
-					controller.keyPressed(keyCode, '\0', modifiers);
-				}
-				lastKeyEventWasKeyPress = false;
-//				refresh();
 			}
 		});
 		
+		textBox.addKeyPressHandler(new KeyPressHandler() {
+			public void onKeyPress(KeyPressEvent event) {
+				logKey(event, event.getCharCode());
+				controller.keyPressed(downKeyCode, event.getCharCode(), event);
+				lastKeyEventWasKeyPress = true;
+			}
+		});
+		
+		textBox.addKeyUpHandler(new KeyUpHandler() {
+			public void onKeyUp(KeyUpEvent event) {
+				logKey(event, event.getNativeKeyCode());
+				if (! lastKeyEventWasKeyPress) {
+					controller.keyPressed(event.getNativeKeyCode(), '\0', event);
+				}
+				lastKeyEventWasKeyPress = false;
+			}
+		});
 	}
 	
-	private static void logKey(String type, char keyCode, int modifiers) {
-		System.err.println("key " + type + ": " + ((int)keyCode) + " (" + keyCode + ") mod:" + modifiers);
+	private static void logKey(KeyEvent<?> event, int code) {
+		System.err.println("key " + event.getAssociatedType().getName() + ": " + code);
 	}
+	
+//	private static void logKey(String type, int keyCode/*, int modifiers*/) {
+//		System.err.println("key " + type + ": " + keyCode + " (" + keyCode + ") " /*mod:" + modifiers*/);
+//	}
 	
 	public void setController(Controller controller) {
 		this.controller = controller;

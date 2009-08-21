@@ -3,6 +3,7 @@ package org.irssi.webssi.client.control;
 import java.util.Arrays;
 import java.util.List;
 
+import org.irssi.webssi.client.DummyKeyEvent;
 import org.irssi.webssi.client.TestWebssi;
 
 import com.google.gwt.junit.client.GWTTestCase;
@@ -13,6 +14,8 @@ import com.google.gwt.junit.client.GWTTestCase;
 public class EntryPredictionTest extends GWTTestCase {
 	private TestWebssi webssi;
 	private int eventIdCounter = 1;
+	
+	private final DummyKeyEvent dummyKeyEvent = new DummyKeyEvent();
 	
 	@Override
 	protected void gwtSetUp() throws Exception {
@@ -29,7 +32,7 @@ public class EntryPredictionTest extends GWTTestCase {
 	 * "a" key resulting simply in "a"
 	 */
 	public void testCorrectPrediction() {
-		webssi.getController().keyPressed('A', 'a', 0);
+		webssi.getController().keyPressed('A', 'a', dummyKeyEvent);
 		assertEntryEquals("a", 1);
 		
 		List<Command> commands = popCommands(1);
@@ -47,7 +50,7 @@ public class EntryPredictionTest extends GWTTestCase {
 	 * "a" key resulting in "b"
 	 */
 	public void testFailedPrediction() {
-		webssi.getController().keyPressed('A', 'a', 0);
+		webssi.getController().keyPressed('A', 'a', dummyKeyEvent);
 		assertEntryEquals("a", 1);
 		
 		List<Command> commands = popCommands(1);
@@ -65,8 +68,8 @@ public class EntryPredictionTest extends GWTTestCase {
 	 * "a" key resulting in "x", with a "b" still pending => replay "b" giving "xb"
 	 */
 	public void testFailReplayPending() {
-		webssi.getController().keyPressed('A', 'a', 0);
-		webssi.getController().keyPressed('B', 'b', 0);
+		webssi.getController().keyPressed('A', 'a', dummyKeyEvent);
+		webssi.getController().keyPressed('B', 'b', dummyKeyEvent);
 		assertEntryEquals("ab", 2);
 		
 		List<Command> commands = popCommands(2);
@@ -84,9 +87,9 @@ public class EntryPredictionTest extends GWTTestCase {
 	 * "a" + "b" + "c", with "a" having effect, but "b" + "c" both having no result => undo "b", leaving "a"
 	 */
 	public void testMiss() {
-		webssi.getController().keyPressed('A', 'a', 0);
-		webssi.getController().keyPressed('B', 'b', 0);
-		webssi.getController().keyPressed('C', 'c', 0);
+		webssi.getController().keyPressed('A', 'a', dummyKeyEvent);
+		webssi.getController().keyPressed('B', 'b', dummyKeyEvent);
+		webssi.getController().keyPressed('C', 'c', dummyKeyEvent);
 		assertEntryEquals("abc", 3);
 		
 		List<Command> commands = popCommands(3);
@@ -107,8 +110,8 @@ public class EntryPredictionTest extends GWTTestCase {
 	 * => undo "a", and replay "b", resulting in just "b"
 	 */
 	public void testMissReplayPending() {
-		webssi.getController().keyPressed('A', 'a', 0);
-		webssi.getController().keyPressed('B', 'b', 0);
+		webssi.getController().keyPressed('A', 'a', dummyKeyEvent);
+		webssi.getController().keyPressed('B', 'b', dummyKeyEvent);
 		assertEntryEquals("ab", 2);
 		
 		List<Command> commands = popCommands(2);
@@ -126,8 +129,8 @@ public class EntryPredictionTest extends GWTTestCase {
 	 * => "xab"
 	 */
 	public void testUnexpected() {
-		webssi.getController().keyPressed('A', 'a', 0);
-		webssi.getController().keyPressed('B', 'b', 0);
+		webssi.getController().keyPressed('A', 'a', dummyKeyEvent);
+		webssi.getController().keyPressed('B', 'b', dummyKeyEvent);
 		assertEntryEquals("ab", 2);
 		
 		List<Command> commands = popCommands(2);
@@ -148,9 +151,9 @@ public class EntryPredictionTest extends GWTTestCase {
 	 * => replay "c" (even though the last prediction was correct) => "abc"
 	 */
 	public void testCorrectAfterFail() {
-		webssi.getController().keyPressed('A', 'a', 0);
-		webssi.getController().keyPressed('B', 'b', 0);
-		webssi.getController().keyPressed('C', 'c', 0);
+		webssi.getController().keyPressed('A', 'a', dummyKeyEvent);
+		webssi.getController().keyPressed('B', 'b', dummyKeyEvent);
+		webssi.getController().keyPressed('C', 'c', dummyKeyEvent);
 		assertEntryEquals("abc", 3);
 		
 		List<Command> commands = popCommands(3);
@@ -172,9 +175,9 @@ public class EntryPredictionTest extends GWTTestCase {
 	 * => replay "c" (even though the last prediction was correct) => "abc"
 	 */
 	public void testCorrectAfterMiss() {
-		webssi.getController().keyPressed('A', 'a', 0);
-		webssi.getController().keyPressed('B', 'b', 0);
-		webssi.getController().keyPressed('C', 'c', 0);
+		webssi.getController().keyPressed('A', 'a', dummyKeyEvent);
+		webssi.getController().keyPressed('B', 'b', dummyKeyEvent);
+		webssi.getController().keyPressed('C', 'c', dummyKeyEvent);
 		assertEntryEquals("abc", 3);
 		
 		List<Command> commands = popCommands(3);

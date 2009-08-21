@@ -6,6 +6,8 @@ import org.irssi.webssi.client.model.WindowItem;
 import org.irssi.webssi.client.sync.Synchronizers;
 import org.irssi.webssi.client.view.View;
 
+import com.google.gwt.event.dom.client.KeyEvent;
+
 /**
  * Controller. Used by the view to send commands.
  */
@@ -50,8 +52,8 @@ public class Controller {
 		execute(new SendLineCommand(win, command));
 	}
 	
-	public void keyPressed(char keyCode, char keyChar, int modifiers) {
-		KeyCommand command = new KeyCommand(model.getEntry(), keyCode, keyChar, modifiers);
+	public void keyPressed(int keyCode, char charCode, KeyEvent<?> event) {
+		KeyCommand command = new KeyCommand(model.getEntry(), keyCode, charCode, event);
 		execute(command);
 	}
 	

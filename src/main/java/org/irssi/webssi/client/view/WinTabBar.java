@@ -7,19 +7,19 @@ import org.irssi.webssi.client.model.Window;
 import org.irssi.webssi.client.model.WindowItem;
 import org.irssi.webssi.client.model.WindowManager;
 
+import com.google.gwt.event.logical.shared.SelectionEvent;
+import com.google.gwt.event.logical.shared.SelectionHandler;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.Label;
-import com.google.gwt.user.client.ui.SourcesTabEvents;
 import com.google.gwt.user.client.ui.TabBar;
-import com.google.gwt.user.client.ui.TabListener;
 import com.google.gwt.user.client.ui.Widget;
 
 /**
  * TabBar to switch between windows.
  * This only displays the tabs, the content is shown by {@link WinDeck}.
  */
-public class WinTabBar extends Composite implements WindowManager.Listener, Group.Listener<Window>, TabListener {
+public class WinTabBar extends Composite implements WindowManager.Listener, Group.Listener<Window>, SelectionHandler<Integer> {
 	
 	/**
 	 * The content (title) of one tab
@@ -87,7 +87,7 @@ public class WinTabBar extends Composite implements WindowManager.Listener, Grou
 		initWidget(tabBar);
 		wm.addListener(this);
 		wm.getWindows().addListener(this);
-		tabBar.addTabListener(this);
+		tabBar.addSelectionHandler(this);
 	}
 
 	public void windowChanged(Window win) {
@@ -106,13 +106,8 @@ public class WinTabBar extends Composite implements WindowManager.Listener, Grou
 		tabBar.removeTab(index);
 	}
 
-	public boolean onBeforeTabSelected(SourcesTabEvents sender, int tabIndex) {
-		// do nothing
-		return true;
-	}
-
-	public void onTabSelected(SourcesTabEvents sender, int tabIndex) {
-		controller.activateWindow(getWindowForTab(tabIndex));
+	public void onSelection(SelectionEvent<Integer> event) {
+		controller.activateWindow(getWindowForTab(event.getSelectedItem()));
 	}
 	
 	private Window getWindowForTab(int tabIndex) {
