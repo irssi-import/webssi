@@ -37,6 +37,7 @@
 	</dependencies>
 	<build>
 		<defaultGoal>gwt:compile</defaultGoal>
+		<outputDirectory>war/WEB-INF/classes</outputDirectory>
 		<plugins>
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
