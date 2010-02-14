@@ -1,0 +1,12 @@
+<module>
+	<inherits name='com.google.gwt.user.User'/>
+	<inherits name='com.google.gwt.user.theme.standard.Standard'/>
+	<inherits name="com.google.gwt.http.HTTP"/>
+	<inherits name='com.google.gwt.json.JSON'/>
+	
+	<entry-point class='org.irssi.webssi.client.TestWebssi'/>
+
+	<stylesheet src='Webssi.css' />
+
+	<servlet path='/events.json' class='org.irssi.webssi.server.ForwardServlet'/>
+</module>

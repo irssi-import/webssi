@@ -12,7 +12,7 @@
 
 	<properties>
 		<maven.test.skip>true</maven.test.skip>
-		<gwtVersion>1.7.0</gwtVersion>
+		<gwtVersion>2.0.1</gwtVersion>
 	</properties>
 
 	<dependencies>
@@ -42,12 +42,9 @@
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>gwt-maven-plugin</artifactId>
-				<version>1.1</version>
+				<version>1.2</version>
 				<executions>
 					<execution>
-						<configuration>
-							<runTarget>org.irssi.webssi.Webssi/Webssi.html</runTarget>
-						</configuration>
 						<goals>
 							<goal>compile</goal>
 						</goals>
@@ -56,12 +53,13 @@
 				<configuration>
 					<source>1.5</source>
 					<target>1.5</target>
+					<runTarget>org.irssi.webssi.Webssi/Webssi.html</runTarget>
 				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>gwt-maven-plugin</artifactId>
-				<version>1.1</version>
+				<version>1.2</version>
 				<configuration>
 					<includes>**/*Test.java</includes>
 				</configuration>

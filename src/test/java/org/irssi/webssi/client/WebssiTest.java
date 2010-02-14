@@ -53,10 +53,11 @@ public class WebssiTest extends AbstractExpectTest {
 	@Override
 	protected void gwtSetUp() throws Exception {
 		super.gwtSetUp();
-		webssi = new Webssi();
+		webssi = new TestWebssi();
 		webssi.onModuleLoad();
 		link = webssi.getLink();
 		model = webssi.getModel();
+		link.scheduleSyncFast();
 	}
 	
 	@Override

@@ -17,6 +17,6 @@
 
 	<servlet-mapping>
 		<servlet-name>forward</servlet-name>
-		<url-pattern>/events.json</url-pattern>
+		<url-pattern>/org.irssi.webssi.Webssi/events.json</url-pattern>
 	</servlet-mapping>
 </web-app>

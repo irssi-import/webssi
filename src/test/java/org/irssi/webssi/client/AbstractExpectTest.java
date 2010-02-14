@@ -79,7 +79,7 @@ public abstract class AbstractExpectTest extends GWTTestCase {
 	}
 
 	public String getModuleName() {
-		return "org.irssi.webssi.Webssi";
+		return "org.irssi.webssi.TestWebssi";
 	}
 	
 	static protected <T> Ref<T> newRef() {

@@ -20,7 +20,7 @@ public class EntryPredictionTest extends GWTTestCase {
 	@Override
 	protected void gwtSetUp() throws Exception {
 		super.gwtSetUp();
-		webssi = new TestWebssi();
+		webssi = new TestWebssi(false);
 		webssi.onModuleLoad();
 	}
 	

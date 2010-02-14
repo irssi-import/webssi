@@ -56,7 +56,9 @@ public class Webssi implements EntryPoint {
 	}
 	
 	JsonLink createLink() {
-		return new JsonLink();
+		JsonLink jsonLink = new JsonLink();
+		jsonLink.scheduleSyncFast();
+		return jsonLink;
 	}
 	
 	Commander getCommander() {

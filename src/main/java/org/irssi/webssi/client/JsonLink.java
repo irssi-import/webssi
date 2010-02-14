@@ -10,6 +10,7 @@ import org.irssi.webssi.client.events.EventHandler;
 import org.irssi.webssi.client.events.InitEvent;
 import org.irssi.webssi.client.events.JsonEvent;
 
+import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.JsArray;
 import com.google.gwt.http.client.Request;
 import com.google.gwt.http.client.RequestBuilder;
@@ -77,8 +78,6 @@ class JsonLink implements Link {
 				// do nothing
 			}
 		});
-		
-		scheduleSyncFast();
 	}
 	
 	void setCommander(Commander commander) {
@@ -152,7 +151,7 @@ class JsonLink implements Link {
 		
 		debug("syncing...");
 		
-		RequestBuilder builder = new RequestBuilder(RequestBuilder.POST, "/events.json");
+		RequestBuilder builder = new RequestBuilder(RequestBuilder.POST, GWT.getModuleBaseURL() + "events.json");
 		String data = sessionId + ' ' + lastEventReceivedId + ' ' + commander.getPendingCommandsAsJson();
 		debug("sending: " + data);
 		try {
