@@ -1,0 +1,20 @@
+<ui:UiBinder xmlns:ui='urn:ui:com.google.gwt.uibinder' xmlns:g="urn:import:com.google.gwt.user.client.ui" xmlns:v="urn:import:org.irssi.webssi.client.view">
+	<g:DockLayoutPanel stylePrimaryName="rootDock" unit="PX">
+		<g:west size="100">
+			<v:ItemTreeView ui:field="itemTreeView"/>
+		</g:west>
+		<g:center>
+			<g:DockLayoutPanel stylePrimaryName="rootDock">
+				<g:north size="20">
+					<v:WinTabBar ui:field="winTabBar"/>
+				</g:north>
+				<g:south size="30">
+					<v:EntryView ui:field="entryView" stylePrimaryName="entryBox" />
+				</g:south>
+				<g:center>
+					<v:WinDeck ui:field="wmv" stylePrimaryName="winDeck"/>
+				</g:center>
+			</g:DockLayoutPanel>
+		</g:center>
+	</g:DockLayoutPanel>
+</ui:UiBinder>

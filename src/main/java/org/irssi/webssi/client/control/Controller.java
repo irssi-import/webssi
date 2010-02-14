@@ -13,13 +13,13 @@ import com.google.gwt.event.dom.client.KeyEvent;
  */
 public class Controller {
 	private final Model model;
-	private final View view;
+//	private final View view;
 	private final Synchronizers synchronizers;
 	private final Commander commander;
 
 	public Controller(Model model, View view, Commander commander, Synchronizers synchronizers) {
 		this.model = model;
-		this.view = view;
+//		this.view = view;
 		this.commander = commander;
 		this.synchronizers = synchronizers;
 		view.setController(this);
@@ -55,10 +55,6 @@ public class Controller {
 	public void keyPressed(int keyCode, char charCode, KeyEvent<?> event) {
 		KeyCommand command = new KeyCommand(model.getEntry(), keyCode, charCode, event);
 		execute(command);
-	}
-	
-	public void debugMessage(String type, String message) {
-		view.debug(type, message);
 	}
 	
 	private void execute(Command command) {
