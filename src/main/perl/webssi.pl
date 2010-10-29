@@ -429,11 +429,10 @@ sub send_response_http($$) {
 
 sub send_response_later($) {
 	my ($session) = @_;
-	if ($session->{response_scheduled} || ! $session->{pending_connection} || scalar(@{$session->{events}}) == 0) {
+	if ($session->{response_scheduled} || ! $session->{pending_connection}) {
 		return;
 	}
 	$session->{response_scheduled} = 1;
-	# note: not using the execute_later queue here, because commands in that queue should still be execute before this one
 	Irssi::timeout_add_once(50, \&send_response_now, $session);
 }
 
@@ -446,17 +445,22 @@ sub send_response_now($) {
 		die "no connection to send response to";
 	}
 	
-	before_send_response();
+	before_send_response($session);
 	
-	# get events
-	my $eventstring = get_events_as_json($session);
+	# if there's something to send
+	if (scalar(@{$session->{events}}) != 0) {
+		
+		# get events
+		my $eventstring = get_events_as_json($session);
 	
-	# send reply
-	my $response = HTTP::Response->new(200, undef, undef, $eventstring);
-	#debug("sending: $eventstring");
-	send_response_http($connection, $response);
+		# send reply
+		my $response = HTTP::Response->new(200, undef, undef, $eventstring);
+		#debug("sending: $eventstring");
+		send_response_http($connection, $response);
 	
-	delete $session->{pending_connection};
+		delete $session->{pending_connection};
+	}
+	
 	$session->{response_scheduled} = 0;
 }
 
@@ -505,26 +509,6 @@ sub UNLOAD {
 	if ($https_listen_socket) {
 		$https_listen_socket->close();
 		$https_listen_socket = undef;
-	}
-}
-
-########## EXECUTE QUEUE ##########
-my @execute_queue;
-
-# executes the given sub a little later, after currently processing events are done.
-sub execute_later($) {
-	my ($closure) = @_;
-	if (scalar(@execute_queue) == 0) {
-		Irssi::timeout_add_once(50, \&execute_queue_now, undef);
-	}
-	push @execute_queue, $closure;
-}
-
-sub execute_queue_now() {
-	my @executing = @execute_queue;
-	@execute_queue = ();
-	for my $closure (@executing) {
-		&$closure();
 	}
 }
 
@@ -984,21 +968,42 @@ sub sig_print_text {
 	$ignore_printing--;
 }
 
-# Add events for new text in the given window to the client "soon".
-# The small delay is added to push as much text into one event as possible
+# Mark the given window as dirty for the session and schedule a response to be sent soon.
+# The creation of the events for new text in the dirty window is delayed until right before the response is sent.
+# That way we minimize the queue of events (saving memory), and we push as much text into one event as possible
 sub update_text_later {
 	my ($session, $window) = @_;
-	execute_later(sub {
-		update_text_now($session, $window);
-	});
+	
+	# if it's already flagged as dirty, forget about it
+	if ($session->{dirty_windows}->{window_to_id($window)}) {
+		return;
+	}
+	
+	$session->{dirty_windows}->{window_to_id($window)} = 1;
+	
+	send_response_later($session);
+}
+
+# Create the events for new text in windows marked dirty now.
+# Called right before sending the response.
+sub update_dirty_text_now($) {
+	my ($session) = @_;
+	
+	foreach my $win_id (keys(%{$session->{dirty_windows}})) {
+		my $window = id_to_window($win_id);
+		if ($window) { # if the window still exists
+			update_text_now($session, $window);
+		}
+	}
+	$session->{dirty_windows} = {};
 }
 
 # add events for new text in the given window to the clients
 sub update_text_now {
 	my ($session, $window) = @_;
 	
-	# if in the short time we delayed before actually updating the window,
-	# we already stopped following it (for example /eval window next;window next)
+	# if we already stopped following the window between the time it was marked dirty
+	# and now that the response is being sent (for example /eval window next;window next)
 	if (! is_following_window($session, $window)) {
 		return; # don't update
 	}
@@ -1067,8 +1072,10 @@ Irssi::signal_add_last('gui key pressed', sub {
 	#debug("key:" . $_[0])
 });
 
-sub before_send_response() {
-	execute_queue_now(); # make sure the queue is empty before we're sending a response
+# called right before we send a response.
+sub before_send_response($) {
+	my ($session) = @_;
+	update_dirty_text_now($session);
 	update_entry();
 }
 
