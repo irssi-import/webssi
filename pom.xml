@@ -12,26 +12,26 @@
 
 	<properties>
 		<maven.test.skip>true</maven.test.skip>
-		<gwtVersion>2.0.1</gwtVersion>
+		<gwt.version>2.1.0</gwt.version>
 	</properties>
 
 	<dependencies>
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>3.8.2</version>
+			<version>4.8.1</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>com.google.gwt</groupId>
 			<artifactId>gwt-user</artifactId>
-			<version>${gwtVersion}</version>
+			<version>${gwt.version}</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>com.google.gwt</groupId>
 			<artifactId>gwt-servlet</artifactId>
-			<version>${gwtVersion}</version>
+			<version>${gwt.version}</version>
 			<scope>compile</scope>
 		</dependency>
 	</dependencies>
@@ -42,7 +42,7 @@
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>gwt-maven-plugin</artifactId>
-				<version>1.2</version>
+				<version>1.3.2.google</version>
 				<executions>
 					<execution>
 						<goals>
@@ -51,15 +51,16 @@
 					</execution>
 				</executions>
 				<configuration>
-					<source>1.5</source>
-					<target>1.5</target>
+					<source>1.6</source>
+					<target>1.6</target>
+					<gwtVersion>${gwt.version}</gwtVersion>
 					<runTarget>org.irssi.webssi.Webssi/Webssi.html</runTarget>
 				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>gwt-maven-plugin</artifactId>
-				<version>1.2</version>
+				<version>1.3.2.google</version>
 				<configuration>
 					<includes>**/*Test.java</includes>
 				</configuration>
@@ -94,7 +95,7 @@
 				</executions>
 				<configuration>
 					<links>
-						<link>http://java.sun.com/j2se/1.5.0/docs/api/</link>
+						<link>http://download.oracle.com/javase/6/docs/api/</link>
 					</links>
 					<version>true</version>
 					<show>package</show>
@@ -104,8 +105,8 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<configuration>
-					<source>1.5</source>
-					<target>1.5</target>
+					<source>1.6</source>
+					<target>1.6</target>
 				</configuration>
 			</plugin>
 		</plugins>
@@ -116,4 +117,11 @@
 			<email>wouter@coekaerts.be</email>
 		</developer>
 	</developers>
+	<repositories>
+		<repository>
+			<id>gwt-repo</id>
+			<url>http://google-web-toolkit.googlecode.com/svn/2.1.0/gwt/maven/</url>
+			<name>Google Web Toolkit Repository</name>
+		</repository>
+	</repositories>
 </project>
